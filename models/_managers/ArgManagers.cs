@@ -2,7 +2,7 @@
  * @Author: Conghao Wong
  * @Date: 2021-01-22 21:08:04
  * @LastEditors: Conghao Wong
- * @LastEditTime: 2021-01-29 01:47:45
+ * @LastEditTime: 2021-01-29 01:53:56
  * @Description: file content
  */
 
@@ -10,24 +10,27 @@ using System;
 
 namespace models.Managers.ArgManagers
 {
-    public class BaseArgManager{
+    public class BaseArgManager
+    {
         public string gpu = "0";
         public bool verbose = false;
 
         public string save_base_dir = "./logs";
         public string save_format = "tf";
         public string log_dir = "null";
-        public string load = "null";        
+        public string load = "null";
     }
 
-    public class BasePredictArgs : BaseArgManager{
+    public class BasePredictArgs : BaseArgManager
+    {
         public int obs_frames = 8;
         public int pred_frames = 12;
     }
 
-    public class TrainArgsManager : BasePredictArgs{
+    public class TrainArgsManager : BasePredictArgs
+    {
         public int map_half_size = 50;
-        
+
         public int batch_size = 5000;
         public string test_mode = "one";
 

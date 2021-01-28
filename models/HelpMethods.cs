@@ -2,7 +2,7 @@
  * @Author: Conghao Wong
  * @Date: 2021-01-26 13:17:07
  * @LastEditors: Conghao Wong
- * @LastEditTime: 2021-01-29 01:16:53
+ * @LastEditTime: 2021-01-29 01:53:22
  * @Description: file content
  */
 
@@ -19,7 +19,6 @@ using Tensorflow.Keras.Engine;
 using static models.HelpMethods;
 using static Tensorflow.Binding;
 using static Tensorflow.KerasApi;
-using OpenCvSharp;
 using System.Runtime.Serialization.Formatters.Binary;
 
 namespace models
@@ -32,22 +31,30 @@ namespace models
             Console.Write(output);
         }
 
-        public static Tensor tf_norm(Tensor input, int ord = 2, int axis = -1){
-            if (ord == 2){
-                var sum = tf.reduce_sum(tf.pow(input, 2), axis:axis);
+        public static Tensor tf_norm(Tensor input, int ord = 2, int axis = -1)
+        {
+            if (ord == 2)
+            {
+                var sum = tf.reduce_sum(tf.pow(input, 2), axis: axis);
                 var sqrt = tf.sqrt(sum);
                 return sqrt;
-            } else if (ord == 1){
-                var sum = tf.reduce_sum(tf.abs(input), axis:axis);
+            }
+            else if (ord == 1)
+            {
+                var sum = tf.reduce_sum(tf.abs(input), axis: axis);
                 return sum;
-            } else {
+            }
+            else
+            {
                 return input;
             }
         }
 
-        public static Tensor tf_batch_matmul(Tensor left_low, Tensor right_high){
+        public static Tensor tf_batch_matmul(Tensor left_low, Tensor right_high)
+        {
             var temp = new List<Tensor>();
-            for (int index = 0; index < right_high.shape[0]; index ++){
+            for (int index = 0; index < right_high.shape[0]; index++)
+            {
                 temp.append(tf.matmul(left_low, right_high[index]));
             }
             return tf.stack(temp.ToArray());
@@ -90,7 +97,8 @@ namespace models
             return System.IO.Directory.Exists(path);
         }
 
-        public static bool file_exist(string path){
+        public static bool file_exist(string path)
+        {
             return System.IO.File.Exists(path);
         }
 
@@ -110,13 +118,16 @@ namespace models
             return ps;
         }
 
-        public static dynamic load_image(string path, int[] resize_shape = null, bool return_numpy = true){
+        public static dynamic load_image(string path, int[] resize_shape = null, bool return_numpy = true)
+        {
             var image = tf.io.read_file(path);
             var image_decode = tf.image.decode_jpeg(image);
-            if (!(resize_shape == null)){
+            if (!(resize_shape == null))
+            {
                 image_decode = tf.image.resize(image_decode, resize_shape);
             }
-            if (return_numpy){
+            if (return_numpy)
+            {
                 var result = image_decode.numpy().reshape(image_decode.shape);
                 return result;
             }
@@ -136,19 +147,6 @@ namespace models
                 }
             }
             return data_ndarray;
-        }
-
-        public static NDArray mat2ndarray(Mat frame)
-        {
-            var channels = frame.Channels();
-            var width = frame.Size().Width;
-            var height = frame.Size().Height;
-
-            byte[] data = new byte[width * height * channels];
-            frame.GetArray<byte>(out data); //获取mat数据到（byte）data
-
-            NDArray nd = new NDArray(data); //直接创建一个NDarray读取data
-            return nd;
         }
 
         public static Dictionary<T1, T2> make_dict<T1, T2>(T1[] keys, T2[] values)
@@ -198,7 +196,7 @@ namespace models
             (var x_p, var _) = _predict_linear(t, x, t_p, diff_weights: different_weights);
             (var y_p, var _) = _predict_linear(t, y, t_p, diff_weights: different_weights);
 
-            return np.concatenate(new NDArray[] { x_p, y_p }, axis:-1);
+            return np.concatenate(new NDArray[] { x_p, y_p }, axis: -1);
         }
 
         public static NDArray ndarray_inv(NDArray A)
@@ -289,8 +287,8 @@ namespace models
             {    // [K, pred, 2]
                 var ade_list = new List<double>();
                 var fde_list = new List<double>();
-                for (int index = 0; index < len(pred); index ++)
-                {   
+                for (int index = 0; index < len(pred); index++)
+                {
                     var p = pred[index];
                     var all_loss = np.mean(np.sqrt(np.square(p - GT)), axis: 1);
                     ade_list.append(np.mean(all_loss));
@@ -318,22 +316,28 @@ namespace models
             return (ade, fde);
         }
 
-        public static NDArray linear_activation(NDArray x, float a = 1.0f, float b = 1.0f){
-            var zero = np.zeros_like(x, dtype:np.float32);
+        public static NDArray linear_activation(NDArray x, float a = 1.0f, float b = 1.0f)
+        {
+            var zero = np.zeros_like(x, dtype: np.float32);
             return (x < zero) * a * x + (x > zero) * b * x + (x == zero) * 1.0f * x;
         }
 
-        public static NDArray calculate_length(NDArray vec){
+        public static NDArray calculate_length(NDArray vec)
+        {
             return np.sqrt(np.sum(np.square(vec).astype(np.float32))).astype(np.float32);
         }
 
-        public static NDArray calculate_cosine(NDArray vec1, NDArray vec2){
+        public static NDArray calculate_cosine(NDArray vec1, NDArray vec2)
+        {
             var length1 = calculate_length(vec1);
             var length2 = calculate_length(vec2);
 
-            if ((bool)(length2 == 0)){
+            if ((bool)(length2 == 0))
+            {
                 return np.array(-1.0f).astype(np.float32);
-            } else {
+            }
+            else
+            {
                 return (np.sum(vec1 * vec2) / (length1 * length2)).astype(np.float32);
             }
         }
