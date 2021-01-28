@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="opencvsharp4" Version="4.5.1.20210123" />
+    <PackageReference Include="SciSharp.TensorFlow.Redist" Version="2.3.1" />
+    <PackageReference Include="TensorFlow.Keras" Version="0.3.0" />
+    <PackageReference Include="TensorFlow.NET" Version="0.32.0" />
+  </ItemGroup>
+
+</Project>

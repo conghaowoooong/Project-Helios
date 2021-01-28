@@ -1,0 +1,7 @@
+bin
+dataset_npz
+data
+[Oo]bj
+
+*.temp
+*.npy
