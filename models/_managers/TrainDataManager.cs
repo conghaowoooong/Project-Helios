@@ -2,7 +2,7 @@
  * @Author: Conghao Wong
  * @Date: 2021-01-27 17:18:51
  * @LastEditors: Conghao Wong
- * @LastEditTime: 2021-01-28 19:25:47
+ * @LastEditTime: 2021-01-28 23:49:48
  * @Description: file content
  */
 
@@ -57,14 +57,14 @@ namespace models.Managers.TrainManagers
 
     public class DatasetManager
     {
-        private TrainArgsManager args;
+        TrainArgsManager args;
         public string dataset_name;
-        private Dataset dataset_info;
-        private List<Array> video_neighbor_list;
-        private NDArray video_matrix;
-        private NDArray frame_list;
+        Dataset dataset_info;
+        List<Array> video_neighbor_list;
+        NDArray video_matrix;
+        NDArray frame_list;
         public int person_number;
-        private List<EntireTrajectory> all_entire_trajectories;
+        List<EntireTrajectory> all_entire_trajectories;
 
         public DatasetManager(TrainArgsManager args, string dataset_name, Tuple<List<Array>, NDArray, NDArray> custom_list = null)
         {
@@ -246,7 +246,7 @@ namespace models.Managers.TrainManagers
                 var start_frame = trajecotry_current.start_frame;
                 var end_frame = trajecotry_current.end_frame;
 
-                for (int frame_point = start_frame; frame_point < end_frame; frame_point += frame_step)
+                for (int frame_point = start_frame; frame_point < end_frame; frame_point += (frame_step) * this.args.step)
                 {
                     if (frame_point + (this.args.obs_frames + this.args.pred_frames) * frame_step > end_frame)
                     {
@@ -289,12 +289,12 @@ namespace models.Managers.TrainManagers
 
     public class TrainDataManager
     {
-        private TrainArgsManager args;
-        private PredictionDatasetManager dataset_info;
-        private List<string> dataset_list;
-        private List<string> train_list;
-        private List<string> val_list;
-        private Dictionary<string, object> train_info;
+        TrainArgsManager args;
+        PredictionDatasetManager dataset_info;
+        List<string> dataset_list;
+        List<string> train_list;
+        List<string> val_list;
+        public Dictionary<string, object> train_info;
 
         public TrainDataManager(
             TrainArgsManager args, bool save = true,
@@ -381,7 +381,7 @@ namespace models.Managers.TrainManagers
             };
         }
 
-        List<TrainAgentManager> prepare_train_files(
+        public List<TrainAgentManager> prepare_train_files(
             List<DatasetManager> dataset_managers, string mode = "test"
         )
         {

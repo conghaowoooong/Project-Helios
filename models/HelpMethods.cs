@@ -2,7 +2,7 @@
  * @Author: Conghao Wong
  * @Date: 2021-01-26 13:17:07
  * @LastEditors: Conghao Wong
- * @LastEditTime: 2021-01-28 18:47:09
+ * @LastEditTime: 2021-01-29 01:16:53
  * @Description: file content
  */
 
@@ -32,8 +32,25 @@ namespace models
             Console.Write(output);
         }
 
-        public static void log_percent(int current, int total, int log_step = 10){
-            
+        public static Tensor tf_norm(Tensor input, int ord = 2, int axis = -1){
+            if (ord == 2){
+                var sum = tf.reduce_sum(tf.pow(input, 2), axis:axis);
+                var sqrt = tf.sqrt(sum);
+                return sqrt;
+            } else if (ord == 1){
+                var sum = tf.reduce_sum(tf.abs(input), axis:axis);
+                return sum;
+            } else {
+                return input;
+            }
+        }
+
+        public static Tensor tf_batch_matmul(Tensor left_low, Tensor right_high){
+            var temp = new List<Tensor>();
+            for (int index = 0; index < right_high.shape[0]; index ++){
+                temp.append(tf.matmul(left_low, right_high[index]));
+            }
+            return tf.stack(temp.ToArray());
         }
 
         public static string get_slice_index(int start, int end)

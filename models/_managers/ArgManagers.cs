@@ -2,7 +2,7 @@
  * @Author: Conghao Wong
  * @Date: 2021-01-22 21:08:04
  * @LastEditors: Conghao Wong
- * @LastEditTime: 2021-01-28 15:57:23
+ * @LastEditTime: 2021-01-29 01:47:45
  * @Description: file content
  */
 
@@ -42,6 +42,17 @@ namespace models.Managers.ArgManagers
         public int window_size_guidance_map = 10;
         public int avoid_size = 15;
         public int interest_size = 20;
+
+        // dataset training settings
+        public int step = 4;
+        public int add_noise = 0;
+        public int rotate = 0;
+
+        // linear args
+        public float diff_weights = 0.95f;
+
+        // prediction model args
+        public string model = "l";
     }
 }
 

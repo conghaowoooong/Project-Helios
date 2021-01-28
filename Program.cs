@@ -2,7 +2,7 @@
  * @Author: Conghao Wong
  * @Date: 2021-01-22 19:34:14
  * @LastEditors: Conghao Wong
- * @LastEditTime: 2021-01-28 01:15:28
+ * @LastEditTime: 2021-01-29 00:42:58
  * @Description: file content
  */
 
@@ -26,7 +26,15 @@ namespace csharpmodel
         static void Main(string[] args)
         {
             var Margs = new M.Managers.ArgManagers.TrainArgsManager();
-            var dm = new M.Managers.TrainManagers.TrainDataManager(Margs, prepare_type:"all");
+
+            dynamic model;
+            if (Margs.model == "l"){
+                Margs.load = "linear";
+                model = new M.Prediction.Linear(Margs);
+                model.run_commands();
+            }
+            
+            // var dm = new M.Managers.TrainManagers.TrainDataManager(Margs, prepare_type:"all");
         }
     }
 }

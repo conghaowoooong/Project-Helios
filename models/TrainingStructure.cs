@@ -2,7 +2,7 @@
  * @Author: Conghao Wong
  * @Date: 2021-01-26 14:33:11
  * @LastEditors: Conghao Wong
- * @LastEditTime: 2021-01-28 12:57:34
+ * @LastEditTime: 2021-01-29 01:46:34
  * @Description: file content
  */
 
@@ -52,33 +52,37 @@ namespace models
             this.model.save(save_path);
         }
 
-        (Model, Tensorflow.Keras.Optimizers.OptimizerV2) create_model(){
+        public virtual (Model, Tensorflow.Keras.Optimizers.OptimizerV2) create_model(){
             Model model = null;
             var opt = keras.optimizers.Adam(0.001f);
             return (model, opt);
         }
 
-        Tensors pre_process(Tensors model_inputs){
+        public virtual Tensors pre_process(Tensors model_inputs, Dictionary<string, object> kwargs = null){
             return model_inputs;
         }
 
-        Tensors post_process(Tensors model_outputs, Tensors model_inputs = null){
+        public virtual Tensors mid_process(Tensors model_inputs, Dictionary<string, object> kwargs = null){
+            return this.model.Apply(model_inputs);
+        }
+
+        public virtual Tensors post_process(Tensors model_outputs, Tensors model_inputs = null){
             return model_outputs;
         }
 
-        (Tensor, Dictionary<string, Tensor>) loss(Tensor outputs, Tensor labels, Tensors model_inputs = null){
-            var loss = tf.reduce_mean(tf.square(outputs - labels));
+        public virtual (Tensor, Dictionary<string, Tensor>) loss(Tensors outputs, Tensor labels, Dictionary<string, object> kwargs = null){
+            var loss = tf.reduce_mean(tf.square(outputs[0] - labels));
             var loss_dict = new Dictionary<string, Tensor>();
 
             loss_dict.Add("L2", loss);
             return (loss, loss_dict);
         }
 
-        (Tensor, Dictionary<string, Tensor>) loss_eval(Tensor outputs, Tensor labels, string mode = "test"){
+        public virtual (Tensor, Dictionary<string, Tensor>) loss_eval(Tensors outputs, Tensor labels, Dictionary<string, object> kwargs = null){
             return this.loss(outputs, labels);
         }
 
-        Tensor _forward_(Tensors model_inputs, string mode = "test"){
+        Tensors _forward_(Tensors model_inputs, string mode = "test", Dictionary<string, object> kwargs = null){
             bool pre_process, post_process;
             switch (mode)
             {
@@ -92,11 +96,10 @@ namespace models
                     break;
             }
             
-            if (pre_process)
-            {
+            if (pre_process){
                 model_inputs = this.pre_process(model_inputs);
             }
-            var outputs = this.model.Apply(model_inputs);
+            var outputs = this.mid_process(model_inputs);
             if (post_process){
                 outputs = this.post_process(outputs, model_inputs:model_inputs);
             }
@@ -106,14 +109,14 @@ namespace models
 
         (Tensors, Tensor, Dictionary<string, Tensor>) val_during_training(Tensors model_inputs, Tensor gt){
             var model_outputs = this._forward_(model_inputs, mode:"train");
-            (var loss_eval, var loss_dict) = this.loss_eval(model_outputs, gt, mode:"val");
+            (var loss_eval, var loss_dict) = this.loss_eval(model_outputs, gt, new Dictionary<string, object> {{"mode", "val"}});
             return (model_outputs, loss_eval, loss_dict);
         }
 
-        (Tensor, Dictionary<string, Tensor>, Tensor) gradient_operations(Tensors model_inputs, Tensor gt, Tensor loss_move_average){
+        (Tensor, Dictionary<string, Tensor>, Tensor) gradient_operations(Tensors model_inputs, Tensor gt, Tensor loss_move_average, Dictionary<string, object> kwargs = null){
             using var tape = tf.GradientTape();
             var model_outputs = this._forward_(model_inputs, mode:"train");
-            (var loss, var loss_dict) = this.loss(model_outputs, gt, model_inputs:model_inputs);
+            (var loss, var loss_dict) = this.loss(model_outputs, gt, kwargs);
             loss_move_average = 0.7 * loss + 0.3 * loss_move_average;
 
             var grads = tape.gradient(loss_move_average, this.model.trainable_variables);
@@ -122,45 +125,50 @@ namespace models
             return (loss, loss_dict, loss_move_average);
         }
 
-        public virtual (DatasetV2 dataset_train, DatasetV2 dataset_val) load_dataset(){
-            DatasetV2 dataset_train = null;
-            DatasetV2 dataset_val = null;
+        public virtual (IDatasetV2 dataset_train, IDatasetV2 dataset_val) load_dataset(){
+            IDatasetV2 dataset_train = null;
+            IDatasetV2 dataset_val = null;
             return (dataset_train, dataset_val);
         }
 
-        DatasetV2 load_test_dataset(){
-            DatasetV2 dataset_test = null;
+        public virtual IDatasetV2 load_test_dataset(Dictionary<string, object> kwargs = null){
+            IDatasetV2 dataset_test = null;
             return dataset_test;
         }
 
-        DatasetV2 load_forward_dataset(Tensors model_inputs = null){
-            DatasetV2 dataset_forward = null;
+        public virtual IDatasetV2 load_forward_dataset(Dictionary<string, object> kwargs = null){
+            IDatasetV2 dataset_forward = null;
             return dataset_forward;
         }
 
-        void print_dataset_info(){
-            this._print_info(new Dictionary<string, Tensor>(), title:"dataset options");
+        public virtual void print_dataset_info(){
+            this._print_info(title:"dataset options");
         }
 
-        void print_training_info(){
-            this._print_info(new Dictionary<string, Tensor>(), title:"training options");
+        public virtual void print_training_info(){
+            this._print_info(title:"training options");
         }
 
-        void print_test_result_info(Dictionary<string, Tensor> loss_dict){
-            this._print_info(new Dictionary<string, Tensor>(), title:"test results");
+        public virtual void print_test_result_info(Dictionary<string, Tensor> loss_dict, Dictionary<string, object> kwargs = null){
+            this._print_info(title:"test results");
         }
 
-        void print_training_done_info(){
+        void print_training_done_info(Dictionary<string, object> kwargs = null){
             this.log_function("Training done.");
             this.log_function(String.Format("Tensorboard training log file is saved at `{0}`", this.args.log_dir));
             this.log_function(String.Format("To open this log file, please use `tensorboard --logdir {0}`", this.args.log_dir));
         }
 
-        void _print_info(Dictionary<string, Tensor> dict, string title="null"){
+        public void _print_info(string title="null", Dictionary<string, object> kwargs = null){
             this.log_function(String.Format("-----------------{0}-----------------", title));
-            foreach (var key in dict.Keys)
+            foreach (var key in kwargs.Keys)
             {
-                this.log_function(String.Format("Arg '{0}' is '{1}'", key, dict[key].numpy()));
+                dynamic value = kwargs[key];
+                if (value.GetType().IsSubclassOf(typeof(Tensor))){
+                    this.log_function(String.Format("Arg '{0}' is '{1}'", key, value.numpy()));
+                } else {
+                    this.log_function(String.Format("Arg '{0}' is '{1}'", key, value));
+                }
             }
             this.log_function("\n");
         }
@@ -172,17 +180,17 @@ namespace models
 
         (Tensors model_outputs, Tensor loss, Dictionary<string, Tensor> loss_dict) test_one_step(Tensors model_inputs, Tensor gt){
             var model_outputs = this._forward_(model_inputs, mode:"test");
-            (var loss, var loss_dict) = this.loss_eval(model_outputs, gt, mode:"test");
+            (var loss, var loss_dict) = this.loss_eval(model_outputs, gt, new Dictionary<string, object> {{"mode", "test"}});
             return (model_outputs, loss, loss_dict);
         }
 
-        void write_test_results(List<Tensor> model_outputs = null){
+        public virtual void write_test_results(List<Tensor> model_outputs = null, Dictionary<string, object> kwargs = null){
 
         }
 
-        void test(){
+        public void test(Dictionary<string, object> kwargs = null){
             // load dataset
-            var dataset_test = this.load_test_dataset();
+            var dataset_test = this.load_test_dataset(kwargs);
 
             // start test
             var time_bar = dataset_test.batch(this.args.batch_size);
@@ -192,8 +200,14 @@ namespace models
 
             foreach (var test_data in time_bar){
                 (var model_outputs, var loss, var loss_dict) = this.test_one_step(test_data.Item1, test_data.Item2);
-
-                foreach (var index in range(len(model_outputs))){
+                
+                int length;
+                if (model_outputs.GetType() == typeof(Tensors)){
+                    length = model_outputs.Length;
+                } else {
+                    length = 1;
+                }
+                foreach (var index in range(length)){
                     if (len(model_outputs_all) < index + 1){
                         model_outputs_all.append(new List<Tensor>());
                     }
@@ -201,26 +215,29 @@ namespace models
                 }
 
                 foreach (var key in loss_dict.Keys){
+                    if (!(loss_dict_all.ContainsKey(key))){
+                        loss_dict_all[key] = new List<Tensor>();
+                    }
                     loss_dict_all[key].append(loss_dict[key]);
                 }
             }
 
             List<Tensor> tensor_outputs = new List<Tensor>();
             foreach (var index in range(len(model_outputs_all))){
-                tensor_outputs[index] = tf.concat(model_outputs_all[index], axis:0);
+                tensor_outputs.append(tf.concat(model_outputs_all[index], axis:0));
             }
 
             Dictionary<string, Tensor> loss_dict_outputs = new Dictionary<string, Tensor>();
             foreach (var key in loss_dict_all.Keys){
-                loss_dict_outputs[key] = tf.reduce_mean(tf.stack(loss_dict_all[key])).numpy();
+                loss_dict_outputs[key] = tf.reduce_mean(tf.stack(loss_dict_all[key].ToArray()));
             }
 
             // write test results
-            this.print_test_result_info(loss_dict_outputs);
-            this.write_test_results(tensor_outputs);
+            this.print_test_result_info(loss_dict_outputs, kwargs);
+            this.write_test_results(tensor_outputs, kwargs);
         }
 
-        List<Tensor> forward(DatasetV2 dataset){
+        List<Tensor> forward(IDatasetV2 dataset, Dictionary<string, object> kwargs = null){
             List<List<Tensor>> model_outputs_all = new List<List<Tensor>>();
             
             foreach (var model_inputs in dataset.batch(this.args.batch_size)){
@@ -243,7 +260,7 @@ namespace models
         }
 
         List<NDArray> call(Tensors model_inputs){
-            var test_dataset = this.load_forward_dataset(model_inputs:model_inputs);
+            var test_dataset = this.load_forward_dataset(new Dictionary<string, object> {{"model_inputs", model_inputs}});
             var tensor_outputs = this.forward(test_dataset);
 
             List<NDArray> results = new List<NDArray>();
