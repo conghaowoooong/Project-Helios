@@ -2,7 +2,7 @@
  * @Author: Conghao Wong
  * @Date: 2021-01-26 14:33:11
  * @LastEditors: Conghao Wong
- * @LastEditTime: 2021-01-29 01:51:43
+ * @LastEditTime: 2021-01-29 01:59:28
  * @Description: file content
  */
 
@@ -25,7 +25,7 @@ namespace models
     {
         public TrainArgsManager args;
         public Model model;
-        Tensorflow.Keras.Optimizers.OptimizerV2 opt;
+        private Tensorflow.Keras.Optimizers.OptimizerV2 opt;
 
         public void log_function(string str)
         {

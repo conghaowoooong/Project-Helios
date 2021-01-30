@@ -2,7 +2,7 @@
  * @Author: Conghao Wong
  * @Date: 2021-01-22 21:08:04
  * @LastEditors: Conghao Wong
- * @LastEditTime: 2021-01-29 01:53:56
+ * @LastEditTime: 2021-01-29 02:14:45
  * @Description: file content
  */
 
@@ -31,7 +31,9 @@ namespace models.Managers.ArgManagers
     {
         public int map_half_size = 50;
 
+        // train args
         public int batch_size = 5000;
+        public float lr = 0.001f;
         public string test_mode = "one";
 
         // dataset base settings
