@@ -2,7 +2,7 @@
  * @Author: Conghao Wong
  * @Date: 2021-01-26 13:17:07
  * @LastEditors: Conghao Wong
- * @LastEditTime: 2021-01-29 01:53:22
+ * @LastEditTime: 2021-03-26 15:41:46
  * @Description: file content
  */
 
@@ -223,7 +223,7 @@ namespace models
             }
             for (int k = 0; k < n; k++)
             {
-                double max = Math.Abs(C[k, k]);
+                float max = Math.Abs(C[k, k]);
                 int ii = k;
                 for (int m = k + 1; m < n; m++)
                     if (max < Math.Abs(C[m, k]))
@@ -234,14 +234,14 @@ namespace models
                 for (int m = k; m < 2 * n; m++)
                 {
                     if (ii == k) break;
-                    double c;
+                    float c;
                     c = C[k, m];
                     C[k, m] = C[ii, m];
                     C[ii, m] = c;
                 }
                 if ((bool)!(C[k, k] == 1))
                 {
-                    double bs = C[k, k];
+                    float bs = C[k, k];
                     if (bs == 0)
                     {
                         // Console.WriteLine("求逆错误！结果可能不正确！");
@@ -256,7 +256,7 @@ namespace models
                 }
                 for (int q = k + 1; q < n; q++)
                 {
-                    double bs = C[q, k];
+                    float bs = C[q, k];
                     for (int p = k; p < n * 2; p++)
                     {
                         C[q, p] -= bs * C[k, p];
@@ -267,7 +267,7 @@ namespace models
             {
                 for (int k = q - 1; k > -1; k--)
                 {
-                    double bs = C[k, q];
+                    float bs = C[k, q];
                     for (int m = k + 1; m < 2 * n; m++)
                     {
                         C[k, m] -= bs * C[q, m];
@@ -280,13 +280,13 @@ namespace models
             return D;
         }
 
-        public static (double ade, double fde) calculate_ADE_FDE_numpy(NDArray pred, NDArray GT)
+        public static (float ade, float fde) calculate_ADE_FDE_numpy(NDArray pred, NDArray GT)
         {
-            double ade, fde;
+            float ade, fde;
             if (len(pred.shape) == 3)
             {    // [K, pred, 2]
-                var ade_list = new List<double>();
-                var fde_list = new List<double>();
+                var ade_list = new List<float>();
+                var fde_list = new List<float>();
                 for (int index = 0; index < len(pred); index++)
                 {
                     var p = pred[index];
@@ -396,9 +396,9 @@ namespace models
                 //If we are not currently inside a column   如果我们现在不在一列中
                 if (!inColum)
                 {
-                    // If the current character is a double quote then the column value is contained within
+                    // If the current character is a float quote then the column value is contained within
                     //如果当前字符是双引号，则列值包含在内
-                    // double quotes, otherwise append the next character
+                    // float quotes, otherwise append the next character
                     //双引号，否则追加下一个字符
                     inColum = true;
                     if (character == '"')
@@ -407,7 +407,7 @@ namespace models
                         continue;
                     }
                 }
-                // If we are in between double quotes   如果我们处在双引号之间
+                // If we are in between float quotes   如果我们处在双引号之间
                 if (inQuotes)
                 {
                     if ((i + 1) == line.Length)//这个字符已经结束了整行

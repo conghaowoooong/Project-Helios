@@ -2,7 +2,7 @@
  * @Author: Conghao Wong
  * @Date: 2021-01-22 20:04:30
  * @LastEditors: Conghao Wong
- * @LastEditTime: 2021-01-29 01:53:44
+ * @LastEditTime: 2021-03-26 15:56:11
  * @Description: file content
  */
 
@@ -31,130 +31,157 @@ namespace models.Managers.AgentManagers
         Array _traj_map;
         Array _social_map;
         Array _real2grid;
+        Array _frame_list;
+        Array _frame_list_future;
 
-        public Array frame_list;
-        public Array frame_list_future;
+        (float ade, float fde) _loss;
+
+        float _version_ = 2.0f;
 
         public void copy()
         {
-
+            // TODO: copy() in BaseAgentManager
         }
 
-        // 001
-        public NDArray get_traj()
-        {
-            return np.array(this._traj).astype(np.float32);
-        }
 
-        // 002
-        public NDArray get_pred()
-        {
-            return np.array(this._traj_pred).astype(np.float32);
-        }
-
-        // 003
-        public NDArray get_pred_linear()
-        {
-            return np.array(this._traj_pred_linear).astype(np.float32);
-        }
-
-        // 004
-        public NDArray get_future_traj()
-        {
-            return np.array(this._traj_future).astype(np.float32);
-        }
-
-        // 005
-        public NDArray get_traj_map()
-        {
-            return np.array(this._traj_map).astype(np.float32);
-        }
-
-        // 006
-        public NDArray get_social_map()
-        {
-            return np.array(this._social_map).astype(np.float32);
-        }
-
-        // 007
-        public NDArray get_map()
-        {
-            if (this._social_map == null)
-            {
-                return 0.5 * this.get_traj_map();
+        // 1. Historical Trajectory
+        public NDArray traj{
+            get {
+                return np.array(this._traj).astype(np.float32);
             }
-            else
-            {
-                return 0.5 * this.get_social_map() + 0.5 * this.get_traj_map();
+            set {
+                this._traj = value.astype(np.float32).ToMuliDimArray<float>();
             }
         }
 
-        // 008
-        public NDArray get_frame_list()
-        {
-            return np.concatenate(new NDArray[] {
-                np.array(this.frame_list),
-                np.array(this.frame_list_future)
-            });
+        // 2. Prediction Trajectory
+        public NDArray pred{
+            get {
+                return np.array(this._traj_pred).astype(np.float32);
+            }
+            set {
+                this._traj_pred = value.astype(np.float32).ToMuliDimArray<float>();
+            }
         }
 
-        // 201
-        public void write_traj(NDArray _traj, NDArray frame_list)
-        {
-            this._traj = _traj.astype(np.float32).ToMuliDimArray<float>();
-            this.frame_list = frame_list.ToArray<int>();
+        // Frame List
+        public NDArray frame_list {
+            get {
+                return np.concatenate(new NDArray[] {
+                    np.array(this._frame_list),
+                    np.array(this._frame_list_future)
+                });
+            }
+            set {
+                this._frame_list = value.ToArray<int>();
+            }
         }
 
-        // 202
-        public void write_pred(NDArray pred)
-        {
-            this._traj_pred = pred.astype(np.float32).ToMuliDimArray<float>();
+        // Future Frame List
+        public NDArray frame_list_future {
+            get {
+                return this._frame_list_future;
+            }
+            set {
+                this._frame_list_future = value.ToArray<int>();
+            }
         }
 
-        // 203
-        public void write_pred_linear(NDArray pred)
-        {
-            this._traj_pred_linear = pred.astype(np.float32).ToMuliDimArray<float>();
+        // 3. Linear Prediction
+        public NDArray pred_linear {
+            get {
+                return np.array(this._traj_pred_linear).astype(np.float32);
+            }
+            set {
+                this._traj_pred_linear = value.astype(np.float32).ToMuliDimArray<float>();
+            }
         }
 
-        // 204
-        public void write_future_traj(NDArray _traj, NDArray frame_list = null)
-        {
-            this._traj_future = _traj.astype(np.float32).ToMuliDimArray<float>();
-            this.frame_list_future = frame_list.ToArray<int>();
+        // 4. Future Ground Truth
+        public NDArray groundtruth {
+            get {
+                return np.array(this._traj_future).astype(np.float32);
+            }
+            set {
+                this._traj_future = value.astype(np.float32).ToMuliDimArray<float>();
+            }
         }
 
-        // 205
-        public void write_traj_map(MapManager trajmap)
-        {
-            var full_map = trajmap.guidance_map;
-            var half_size = trajmap.args.map_half_size;
-            var center_pos = trajmap.real2grid(this.get_traj()["-1, :"]);
-
-            var original_map = full_map[String.Format("{0}, {1}",
-                models.HelpMethods.get_slice_index(np.maximum(center_pos[0] - half_size, 0), np.minimum(center_pos[0] + half_size, full_map.shape[0])),
-                models.HelpMethods.get_slice_index(np.maximum(center_pos[1] - half_size, 0), np.minimum(center_pos[1] + half_size, full_map.shape[1]))
-            )];
-            var final_map = tf.image.resize(tf.expand_dims(original_map, axis: -1), (2 * half_size, 2 * half_size));
-
-            this._traj_map = final_map.numpy()[":, :, 0"].astype(np.float32).ToMuliDimArray<float>();
-            this._real2grid = trajmap.real2grid_paras().astype(np.float32).ToMuliDimArray<float>();
+        // 5. Trajectory Map
+        public NDArray trajMap {
+            get {
+                return np.array(this._traj_map).astype(np.float32);
+            }
         }
 
-        // 206
-        public void write_social_map(MapManager trajmap, NDArray full_map)
-        {
-            var half_size = trajmap.args.map_half_size;
-            var center_pos = trajmap.real2grid(this.get_traj()["-1, :"]);
+        public MapManager trajMapManager{
+            set {
+                var full_map = value.guidance_map;
+                var half_size = value.args.map_half_size;
+                
+                var center_pos = value.real2grid(this.traj["-1, :"]);
+                var original_map = full_map[String.Format("{0}, {1}",
+                    models.HelpMethods.get_slice_index(np.maximum(center_pos[0] - half_size, 0), np.minimum(center_pos[0] + half_size, full_map.shape[0])),
+                    models.HelpMethods.get_slice_index(np.maximum(center_pos[1] - half_size, 0), np.minimum(center_pos[1] + half_size, full_map.shape[1]))
+                )];
+                
+                var final_map = tf.image.resize(tf.expand_dims(original_map, axis: -1), (2 * half_size, 2 * half_size));
+                this._traj_map = final_map.numpy()[":, :, 0"].astype(np.float32).ToMuliDimArray<float>();
+                this._real2grid = value.real2grid_paras().astype(np.float32).ToMuliDimArray<float>();
+            }
+        }
 
-            var original_map = full_map[String.Format("{0}, {1}",
-                models.HelpMethods.get_slice_index(np.maximum(center_pos[0] - half_size, 0), np.minimum(center_pos[0] + half_size, full_map.shape[0])),
-                models.HelpMethods.get_slice_index(np.maximum(center_pos[1] - half_size, 0), np.minimum(center_pos[1] + half_size, full_map.shape[1]))
-            )];
-            var final_map = tf.image.resize(tf.expand_dims(original_map, axis: -1), (2 * half_size, 2 * half_size));
+        // 6. Social Map
+        public NDArray socialMap {
+            get {
+                return np.array(this._social_map).astype(np.float32);
+            }
+        }
 
-            this._social_map = final_map.numpy()[":, :, 0"].astype(np.float32).ToMuliDimArray<float>();
-            this._real2grid = trajmap.real2grid_paras().astype(np.float32).ToMuliDimArray<float>();
+        public MapManager socialMapManager {
+            set {
+                var half_size = value.args.map_half_size;
+                var center_pos = value.real2grid(this.traj["-1, :"]);
+                var full_map = value.full_map;
+
+                var original_map = full_map[String.Format("{0}, {1}",
+                    models.HelpMethods.get_slice_index(np.maximum(center_pos[0] - half_size, 0), np.minimum(center_pos[0] + half_size, full_map.shape[0])),
+                    models.HelpMethods.get_slice_index(np.maximum(center_pos[1] - half_size, 0), np.minimum(center_pos[1] + half_size, full_map.shape[1]))
+                )];
+                var final_map = tf.image.resize(tf.expand_dims(original_map, axis: -1), (2 * half_size, 2 * half_size));
+
+                this._social_map = final_map.numpy()[":, :, 0"].astype(np.float32).ToMuliDimArray<float>();
+                this._real2grid = value.real2grid_paras().astype(np.float32).ToMuliDimArray<float>();
+            }
+        }
+
+        // 7. Fusion Map
+        public NDArray fusionMap {
+            get {
+                if (this._social_map == null)
+                {
+                    return 0.5 * this.trajMap;
+                }
+                else
+                {
+                    return 0.5 * this.socialMap + 0.5 * this.trajMap;
+                }
+            }
+        }
+
+        // 8. Loss
+        public (float ade, float fde) loss {
+            get {
+                return this._loss;
+            }
+            set {
+                this._loss = value;
+            }
+        }
+
+        public NDArray rotate_map(NDArray map, float rotate_angle){
+            // TODO rotate map in BaseAgentManager
+            return np.array((0));
         }
     }
 
@@ -168,7 +195,7 @@ namespace models.Managers.AgentManagers
         public int obs_length;
         public int total_frame;
         public int neighbor_number;
-        (double ade, double fde) loss;
+        
 
         public TrainAgentManager(
             EntireTrajectory target_agent,
@@ -194,20 +221,22 @@ namespace models.Managers.AgentManagers
 
             if (add_noise)
             {
-
+                // TODO: add noise in TrainAgentManager
             }
 
             var index1 = String.Format(":{0}", this.obs_length);
             var index2 = String.Format("{0}:", this.obs_length);
-            this.write_traj(whole_traj[index1], frame_list_current[index1]);
-            this.write_future_traj(whole_traj[index2], frame_list_current[index2]);
+            this.frame_list = frame_list_current[index1];
+            this.traj = whole_traj[index1];
+            this.groundtruth = whole_traj[index2];
+            this.frame_list_future = frame_list_current[index2];
 
             if (linear_predict)
             {
-                this.write_pred_linear(predict_linear_for_person(
-                    this.get_traj(),
+                this.pred_linear = predict_linear_for_person(
+                    this.traj,
                     time_pred: this.total_frame
-                )[index2]);
+                )[index2];
             }
 
             // neighbor info
@@ -244,7 +273,23 @@ namespace models.Managers.AgentManagers
 
         BaseAgentManager rotate()
         {
+            // TODO: rotate in TrainAgentManager
             return this;
+        }
+
+        public List<NDArray> get_neighbor_traj()
+        {
+            var results = new List<NDArray>();
+            foreach (var item in this._neighbor_traj)
+            {
+                results.append(np.array(item).astype(np.float32));
+            }
+            return results;
+        }
+
+        public void clear_all_neighbor_info(){
+            this._neighbor_traj = new List<Array>();
+            this._neighbor_traj_linear_pred = new List<Array>();
         }
 
         public void write_neighbor_traj(List<NDArray> neighbor_traj, bool clean = true)
@@ -273,17 +318,7 @@ namespace models.Managers.AgentManagers
             }
         }
 
-        public List<NDArray> get_neighbor_traj()
-        {
-            var results = new List<NDArray>();
-            foreach (var item in this._neighbor_traj)
-            {
-                results.append(np.array(item).astype(np.float32));
-            }
-            return results;
-        }
-
-        public List<NDArray> get_neighbor_traj_linear_pred()
+        public List<NDArray> get_neighbor_traj_linear_linear()
         {
             var results = new List<NDArray>();
             foreach (var item in this._neighbor_traj_linear_pred)
@@ -293,10 +328,37 @@ namespace models.Managers.AgentManagers
             return results;
         }
 
-        public (double ade, double fde) calculate_loss(string loss_function = "adefde")
+        public (float ade, float fde) calculate_loss(string loss_function = "adefde")
         {
-            this.loss = calculate_ADE_FDE_numpy(this.get_pred(), this.get_future_traj());
+            this.loss = calculate_ADE_FDE_numpy(this.pred, this.groundtruth);
             return this.loss;
         }
+    }
+
+    class OnlineAgentManager : BaseAgentManager{
+        public int obs_frames;
+        public int pred_frames;
+        public int wait_frames;
+        public int agent_id;
+        
+        public int linear_predictor; // FIXME linear predictor in onlineAgentManager
+
+        public OnlineAgentManager(
+            ArgManagers.OnlineArgsManager args,
+            int agent_id,
+            int linear_predictor
+        ) : base()
+        {
+            this.obs_frames = args.obs_frames;
+            this.pred_frames = args.pred_frames;
+            this.wait_frames = args.wait_frames;
+            
+            this.agent_id = agent_id;
+            this.linear_predictor = linear_predictor;
+        }
+
+        // TODO getter and setter for traj
+        // TODO getter and setter for frame_list
+        // TODO getter and setter for pred_linear
     }
 }

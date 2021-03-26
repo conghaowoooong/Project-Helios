@@ -2,7 +2,7 @@
  * @Author: Conghao Wong
  * @Date: 2021-01-27 17:18:51
  * @LastEditors: Conghao Wong
- * @LastEditTime: 2021-01-28 23:49:48
+ * @LastEditTime: 2021-03-26 16:00:20
  * @Description: file content
  */
 
@@ -272,13 +272,13 @@ namespace models.Managers.TrainManagers
             timebar.clean();
             foreach (var index in range(len(train_agents)))
             {
-                train_agents[index].write_traj_map(map_manager);
+                train_agents[index].trajMapManager = map_manager;
                 if (!(train_agents[index].neighbor_number == 0))
                 {
-                    train_agents[index].write_social_map(map_manager, map_manager.build_social_map(
+                    train_agents[index].socialMapManager = map_manager.build_social_map(
                         target_agent: train_agents[index],
-                        traj_neighbors: np.stack(train_agents[index].get_neighbor_traj_linear_pred().ToArray())
-                    ));
+                        traj_neighbors: np.stack(train_agents[index].get_neighbor_traj_linear_linear().ToArray())
+                    );
                 }
                 timebar.log(index, len(train_agents));
             }

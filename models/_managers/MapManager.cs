@@ -2,7 +2,7 @@
  * @Author: Conghao Wong
  * @Date: 2021-01-22 21:00:55
  * @LastEditors: Conghao Wong
- * @LastEditTime: 2021-01-29 02:22:01
+ * @LastEditTime: 2021-03-26 16:01:32
  * @Description: file content
  */
 
@@ -25,6 +25,7 @@ namespace models.Managers
     public class MapManager
     {
         public TrainArgsManager args;
+        public NDArray full_map;
         List<TrainAgentManager> agents;
 
         NDArray void_map;
@@ -136,7 +137,7 @@ namespace models.Managers
             return source;
         }
 
-        public NDArray build_social_map(TrainAgentManager target_agent, NDArray traj_neighbors = null, NDArray source = null, bool regulation = true)
+        public MapManager build_social_map(TrainAgentManager target_agent, NDArray traj_neighbors = null, NDArray source = null, bool regulation = true)
         {
             if (source == null)
             {
@@ -151,12 +152,12 @@ namespace models.Managers
             var rads = new List<float>();
 
             // destination
-            trajs.append(target_agent.get_pred_linear());
+            trajs.append(target_agent.pred_linear);
             amps.append(-2 * np.ones((this.args.pred_frames)));
             rads.append(this.args.interest_size);
 
             // interplay
-            var vec_target = target_agent.get_pred_linear()[-1] - target_agent.get_pred_linear()[0];
+            var vec_target = target_agent.pred_linear[-1] - target_agent.pred_linear[0];
             for (int i = 0; i < len(traj_neighbors); i++)
             {
                 var pred = traj_neighbors[i];
@@ -192,7 +193,8 @@ namespace models.Managers
                 }
             }
 
-            return source;
+            this.full_map = source;
+            return this;
         }
 
         public NDArray real2grid(NDArray traj)
@@ -324,7 +326,7 @@ namespace models.Managers
             var all_trajs = new List<NDArray>();
             foreach (dynamic agent in agents)
             {
-                NDArray trajs = agent.get_traj();
+                NDArray trajs = agent.traj;
                 for (int index = 0; index < len(trajs); index++)
                 {
                     var traj = trajs[index];

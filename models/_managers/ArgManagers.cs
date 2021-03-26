@@ -2,7 +2,7 @@
  * @Author: Conghao Wong
  * @Date: 2021-01-22 21:08:04
  * @LastEditors: Conghao Wong
- * @LastEditTime: 2021-01-29 02:14:45
+ * @LastEditTime: 2021-03-26 15:52:24
  * @Description: file content
  */
 
@@ -58,6 +58,21 @@ namespace models.Managers.ArgManagers
 
         // prediction model args
         public string model = "l";
+    }
+
+
+    public class OnlineArgsManager : TrainArgsManager
+    {
+        public int wait_frames = 4;
+        public int guidance_map_limit = 10000;
+        public (int, int) order = (0, 1);
+        
+        public int draw_future = 0;
+        public string vis = "show";
+        public string img_save_base_path = "./online_vis";
+
+        public int focus_mode = 0;
+        public int run_frames = 0;
     }
 }
 

@@ -2,7 +2,7 @@
  * @Author: Conghao Wong
  * @Date: 2021-01-26 14:33:11
  * @LastEditors: Conghao Wong
- * @LastEditTime: 2021-01-29 01:59:28
+ * @LastEditTime: 2021-03-26 16:34:50
  * @Description: file content
  */
 
@@ -21,48 +21,53 @@ using models.Managers.ArgManagers;
 
 namespace models
 {
-    class TrainingStructure
+    class BaseModel : Model
     {
-        public TrainArgsManager args;
-        public Model model;
-        private Tensorflow.Keras.Optimizers.OptimizerV2 opt;
+        TrainArgsManager _args;
+        TrainingStructure _training_structure;
 
-        public void log_function(string str)
-        {
-            Console.WriteLine(str);
+        public BaseModel(
+            TrainArgsManager Args,
+            TrainingStructure training_structure = null
+        ) : base(null) {
+            this._args = Args;
+            this._training_structure = training_structure;
         }
 
-        public TrainingStructure(TrainArgsManager args)
-        {
-            this.args = args;
+        public TrainArgsManager args {
+            get {
+                return this._args;
+            }
         }
 
-        void gpu_config()
-        {
-
+        public TrainingStructure training_structure {
+            get {
+                return this._training_structure;
+            }
         }
 
-        TrainArgsManager load_args()
-        {
-            return this.args;
+        public void call(){
+            // TODO call in keras.Model
         }
 
-        public void load_model(string model_path)
-        {
-            (this.model, this.opt) = this.create_model();
-            this.model.load_weights(model_path);
-        }
+        public Tensors forward(Tensors model_inputs, bool training=false){
+            var post_process = training ? false : true;
 
-        void save_model(string save_path)
-        {
-            this.model.save(save_path);
-        }
+            var model_inputs_processed = this.pre_process(model_inputs);
+            var outputs = this.Apply(model_inputs);
+            if (true){
+                // FIXME Tensor -> List[Tensor]
+                var outputs_list = new List<Tensor>();
+                outputs_list.append(outputs);
+                outputs = outputs_list;
+            }
+            var output_processed = this.post_process(outputs);
+            
+            if (post_process){
+                outputs = this.post_process_test(outputs, model_inputs: model_inputs);
+            }
 
-        public virtual (Model, Tensorflow.Keras.Optimizers.OptimizerV2) create_model()
-        {
-            Model model = null;
-            var opt = keras.optimizers.Adam(0.001f);
-            return (model, opt);
+            return outputs;
         }
 
         public virtual Tensors pre_process(Tensors model_inputs, Dictionary<string, object> kwargs = null)
@@ -70,14 +75,81 @@ namespace models
             return model_inputs;
         }
 
-        public virtual Tensors mid_process(Tensors model_inputs, Dictionary<string, object> kwargs = null)
-        {
-            return this.model.Apply(model_inputs);
-        }
-
         public virtual Tensors post_process(Tensors model_outputs, Tensors model_inputs = null)
         {
             return model_outputs;
+        }
+
+        public virtual Tensors post_process_test(Tensors model_outputs, Tensors model_inputs = null)
+        {
+            return model_outputs;
+        }
+    }
+
+
+    class TrainingStructure
+    {
+        TrainArgsManager _args;
+        BaseModel _model;
+        private Tensorflow.Keras.Optimizers.OptimizerV2 opt;
+
+        public TrainArgsManager args {
+            get {
+                return this._args;
+            }
+        }
+
+        public BaseModel model {
+            get {
+                return this._model;
+            }
+            set {
+                this._model = value;
+            }
+        }
+
+        public TrainingStructure(TrainArgsManager args)
+        {
+            this._args = args;
+            this.gpu_config();
+            this.load_args();
+        }
+
+        public void log_function(string str)
+        {
+            Console.WriteLine(str);
+        }
+
+
+        void gpu_config()
+        {
+            // TODO gpu config
+        }
+
+        TrainArgsManager load_args()
+        {
+            // TODO load args
+            return this.args;
+        }
+
+        public Model load_model(string model_path)
+        {
+            (model, opt) = this.create_model();
+            model.load_weights(model_path);
+            return model;
+        }
+
+        void save_model(string save_path)
+        {   
+            // FIXME it should be `save_weights` rather than `save`
+            this.model.save(save_path);
+        }
+
+        public virtual (BaseModel, Tensorflow.Keras.Optimizers.OptimizerV2) create_model()
+        {
+            BaseModel model = null;
+            var opt = keras.optimizers.Adam(0.001f);
+            return (model, opt);
         }
 
         public virtual (Tensor, Dictionary<string, Tensor>) loss(Tensors outputs, Tensor labels, Dictionary<string, object> kwargs = null)
@@ -94,37 +166,14 @@ namespace models
             return this.loss(outputs, labels);
         }
 
-        Tensors _forward_(Tensors model_inputs, string mode = "test", Dictionary<string, object> kwargs = null)
+        Tensors model_forward(Tensors model_inputs, string mode = "test", Dictionary<string, object> kwargs = null)
         {
-            bool pre_process, post_process;
-            switch (mode)
-            {
-                case "test":
-                    pre_process = true;
-                    post_process = true;
-                    break;
-                default:
-                    pre_process = true;
-                    post_process = false;
-                    break;
-            }
-
-            if (pre_process)
-            {
-                model_inputs = this.pre_process(model_inputs);
-            }
-            var outputs = this.mid_process(model_inputs);
-            if (post_process)
-            {
-                outputs = this.post_process(outputs, model_inputs: model_inputs);
-            }
-
-            return outputs;
+            return this.model.forward(model_inputs, training: mode == "test"? false : true);
         }
 
         (Tensors, Tensor, Dictionary<string, Tensor>) val_during_training(Tensors model_inputs, Tensor gt)
         {
-            var model_outputs = this._forward_(model_inputs, mode: "train");
+            var model_outputs = this.model_forward(model_inputs, mode: "train");
             (var loss_eval, var loss_dict) = this.loss_eval(model_outputs, gt, new Dictionary<string, object> { { "mode", "val" } });
             return (model_outputs, loss_eval, loss_dict);
         }
@@ -132,7 +181,7 @@ namespace models
         (Tensor, Dictionary<string, Tensor>, Tensor) gradient_operations(Tensors model_inputs, Tensor gt, Tensor loss_move_average, Dictionary<string, object> kwargs = null)
         {
             using var tape = tf.GradientTape();
-            var model_outputs = this._forward_(model_inputs, mode: "train");
+            var model_outputs = this.model_forward(model_inputs, mode: "train");
             (var loss, var loss_dict) = this.loss(model_outputs, gt, kwargs);
             loss_move_average = 0.7 * loss + 0.3 * loss_move_average;
 
@@ -209,7 +258,7 @@ namespace models
 
         (Tensors model_outputs, Tensor loss, Dictionary<string, Tensor> loss_dict) test_one_step(Tensors model_inputs, Tensor gt)
         {
-            var model_outputs = this._forward_(model_inputs, mode: "test");
+            var model_outputs = this.model_forward(model_inputs, mode: "test");
             (var loss, var loss_dict) = this.loss_eval(model_outputs, gt, new Dictionary<string, object> { { "mode", "test" } });
             return (model_outputs, loss, loss_dict);
         }
@@ -285,7 +334,7 @@ namespace models
 
             foreach (var model_inputs in dataset.batch(this.args.batch_size))
             {
-                var model_outputs = this._forward_(model_inputs.Item1, mode: "test");
+                var model_outputs = this.model_forward(model_inputs.Item1, mode: "test");
 
                 foreach (var index in range(len(model_outputs)))
                 {
