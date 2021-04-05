@@ -2,7 +2,7 @@
  * @Author: Conghao Wong
  * @Date: 2021-01-26 18:46:31
  * @LastEditors: Conghao Wong
- * @LastEditTime: 2021-01-29 03:24:28
+ * @LastEditTime: 2021-04-06 00:23:28
  * @Description: file content
  */
 
@@ -14,25 +14,61 @@ using Tensorflow;
 using Tensorflow.Keras;
 using Tensorflow.Keras.ArgsDefinition;
 using Tensorflow.Keras.Engine;
-using static models.HelpMethods;
+using static modules.models.helpMethods.HelpMethods;
 using static Tensorflow.Binding;
 using static Tensorflow.KerasApi;
-using models.Managers;
-using static models.Prediction.Utils;
-using models.Managers.ArgManagers;
-using models.Managers.AgentManagers;
-using models.Managers.TrainManagers;
-using models.Managers.DatasetManagers;
+using modules.models.Base;
+using static modules.models.Prediction.Utils;
+using Tensorflow.Keras.Optimizers;
 
-namespace models.Prediction
+namespace modules.models.Prediction
 {
-    class BasePredictionModel : TrainingStructure
+    class Model : Base.Model
     {
-        public BasePredictionModel(TrainArgsManager args) : base(args)
-        {
-
+        TrainArgs _train_args;
+        public TrainArgs args {
+            get {
+                return this._train_args;
+            }
         }
 
+        Structure _training_structure;
+        public Structure training_structure {
+            get {
+                return this._training_structure;
+            }
+        }
+
+        public Model(TrainArgs args, Structure training_structure) : base(args)
+        {
+            this._train_args = args;
+            this._training_structure = training_structure;
+        }
+    }
+
+
+    class Structure : Base.Structure {
+        TrainArgs _train_args;
+        public new TrainArgs args {
+            get {
+                return this._train_args;
+            }
+        }
+
+        Model _pred_model;
+        public override dynamic model {
+            get {
+                return this._pred_model;
+            }
+            set {
+                this._pred_model = value;
+            }
+        }
+
+        public Structure(TrainArgs args):base(args){
+            this._train_args = args;
+        }
+        
         public void run_commands()
         {
             // prepare training
@@ -45,7 +81,7 @@ namespace models.Prediction
             }
             else
             {
-                this.model = this.load_from_checkpoint(this.args.load);
+                this._pred_model = this.load_from_checkpoint(this.args.load);
                 if (this.args.test_mode == "all")
                 {
                     foreach (var dataset in new PredictionDatasetManager().ethucy_testsets)
@@ -61,7 +97,7 @@ namespace models.Prediction
                     foreach (var dataset_c in new PredictionDatasetManager().ethucy_testsets)
                     {
                         var agents_c = load_dataset_files(this.args, dataset_c);
-                        agents.concat(agents_c).ToList();
+                        agents.Concat(agents_c.ToList());
                         dataset.Concat(String.Format("{0}; ", dataset_c));
                     }
                     this.test(new Dictionary<string, object> { { "agents", agents }, { "dataset_name", dataset } });
@@ -75,6 +111,26 @@ namespace models.Prediction
             }
         }
 
+        ///FUNCTION_NAME: create_model
+        ///<summary>
+        ///        Create models.
+        ///        Please *rewrite* this when training new models.
+        ///        
+        ///</summary>
+        ///<return name="model"> created model </return>
+        new virtual public (Prediction.Model, Tensorflow.Keras.Optimizers.OptimizerV2) create_model()
+        {
+            Prediction.Model model = null;
+            var opt = keras.optimizers.Adam(0.001f);
+            return (model, opt);
+        }
+
+        ///FUNCTION_NAME: load_from_checkpoint
+        ///<summary>
+        ///        Load already trained models from `.h5` or `.tf` files according to args.
+        ///
+        ///</summary>
+        ///<param name="model_path"> target dir where your model puts in </param>
         public virtual Model load_from_checkpoint(string model_path)
         {
             this.load_model(model_path);
@@ -86,6 +142,12 @@ namespace models.Prediction
             return getInputs_onlyTraj(input_agents);
         }
 
+        ///FUNCTION_NAME: load_dataset
+        ///<summary>
+        ///        Load training and val dataset.
+        ///
+        ///</summary>
+        ///<return name="dataset_train"> train dataset, type = `tf.data.Dataset` </return>
         public override (IDatasetV2, IDatasetV2) load_dataset()
         {
             var dm = new TrainDataManager(this.args, prepare_type: "all");
@@ -104,6 +166,11 @@ namespace models.Prediction
             return (dataset_train, dataset_test);
         }
 
+        ///FUNCTION_NAME: load_test_dataset
+        ///<summary>
+        ///        Load test dataset.
+        ///
+        ///</summary>
         public override IDatasetV2 load_test_dataset(Dictionary<string, object> kwargs = null)
         {
             var agents = (List<TrainAgentManager>)kwargs["agents"];
@@ -112,12 +179,27 @@ namespace models.Prediction
             return dataset_test;
         }
 
+        ///FUNCTION_NAME: load_forward_dataset
+        ///<summary>
+        ///        Load forward dataset.
+        ///
+        ///</summary>
         public override IDatasetV2 load_forward_dataset(Dictionary<string, object> kwargs = null)
         {
             dynamic agents = kwargs["model_inputs"];
             return getForwardDataset_onlyTraj(agents);
         }
 
+        ///FUNCTION_NAME: loss
+        ///<summary>
+        ///        Train loss, using ADE by default.
+        ///
+        ///        
+        ///</summary>
+        ///<param name="outputs"> model's outputs </param>
+        ///<param name="labels"> groundtruth labels </param>
+        ///<param name="loss_name_list"> a list of name of used loss functions </param>
+        ///<return name="loss"> sum of all single loss functions </return>
         public override (Tensor, Dictionary<string, Tensor>) loss(Tensors outputs, Tensor labels, Dictionary<string, object> kwargs = null)
         {
             var loss = Loss.ADE(outputs[0], labels);
@@ -127,6 +209,16 @@ namespace models.Prediction
             return (loss, loss_dict);
         }
 
+        ///FUNCTION_NAME: loss_eval
+        ///<summary>
+        ///        Eval loss, using [ADE, FDE] by default.
+        ///
+        ///        
+        ///</summary>
+        ///<param name="outputs"> model's outputs </param>
+        ///<param name="labels"> groundtruth labels </param>
+        ///<param name="loss_name_list"> a list of name of used loss functions </param>
+        ///<return name="loss"> sum of all single loss functions </return>
         public override (Tensor, Dictionary<string, Tensor>) loss_eval(Tensors outputs, Tensor labels, Dictionary<string, object> kwargs = null)
         {
             var loss_ade = Loss.ADE(outputs[0], labels);
@@ -168,7 +260,7 @@ namespace models.Prediction
             dynamic agents = kwargs["agents"];
             dynamic testset_name = kwargs["dataset_name"];
 
-
+            // TODO
         }
     }
 }

@@ -2,7 +2,7 @@
  * @Author: Conghao Wong
  * @Date: 2021-01-27 17:46:56
  * @LastEditors: Conghao Wong
- * @LastEditTime: 2021-01-28 00:36:54
+ * @LastEditTime: 2021-04-05 22:26:23
  * @Description: file content
  */
 
@@ -11,38 +11,10 @@ using System.Collections.Generic;
 using System.Linq;
 using NumSharp;
 
-namespace models.Managers.DatasetManagers
+using modules.models.Base;
+
+namespace modules.models.Prediction
 {
-    public class Dataset
-    {
-        public string dataset;
-        public string dataset_dir;
-        public List<int> order;
-        public List<float> paras;
-        public string video_path;
-        public List<object> weights;
-        public float scale;
-        public Dataset(
-            string dataset,
-            string dataset_dir,
-            List<int> order,
-            List<float> paras,
-            string video_path,
-            List<object> weights,
-            float scale
-        )
-        {
-            this.dataset = dataset;
-            this.dataset_dir = dataset_dir;
-            this.order = order;
-            this.paras = paras;
-            this.video_path = video_path;
-            this.weights = weights;
-            this.scale = scale;
-        }
-    }
-
-
     public class PredictionDatasetManager
     {
         Dictionary<string, Dataset> datasets = new Dictionary<string, Dataset>();

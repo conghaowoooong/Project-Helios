@@ -2,7 +2,7 @@
  * @Author: Conghao Wong
  * @Date: 2021-01-26 13:17:07
  * @LastEditors: Conghao Wong
- * @LastEditTime: 2021-03-26 15:41:46
+ * @LastEditTime: 2021-04-05 22:45:12
  * @Description: file content
  */
 
@@ -16,15 +16,24 @@ using Tensorflow;
 using Tensorflow.Keras;
 using Tensorflow.Keras.ArgsDefinition;
 using Tensorflow.Keras.Engine;
-using static models.HelpMethods;
+
 using static Tensorflow.Binding;
 using static Tensorflow.KerasApi;
 using System.Runtime.Serialization.Formatters.Binary;
 
-namespace models
+namespace modules.models.helpMethods
 {
     public static class HelpMethods
     {
+        public static dynamic getattr(dynamic instance, string item_name){
+            return instance.GetType().GetField(item_name).GetValue(instance);
+        }
+
+        public static dynamic setattr(dynamic instance, string item_name, dynamic value){
+            instance.GetType().GetField(item_name).SetValue(instance, value);
+            return instance;
+        }
+
         public static void log_function(string str, string end = "\n")
         {
             var output = String.Format("{0}{1}", str, end);
@@ -223,7 +232,7 @@ namespace models
             }
             for (int k = 0; k < n; k++)
             {
-                float max = Math.Abs(C[k, k]);
+                double max = Math.Abs(C[k, k]);
                 int ii = k;
                 for (int m = k + 1; m < n; m++)
                     if (max < Math.Abs(C[m, k]))
@@ -234,14 +243,14 @@ namespace models
                 for (int m = k; m < 2 * n; m++)
                 {
                     if (ii == k) break;
-                    float c;
+                    double c;
                     c = C[k, m];
                     C[k, m] = C[ii, m];
                     C[ii, m] = c;
                 }
                 if ((bool)!(C[k, k] == 1))
                 {
-                    float bs = C[k, k];
+                    double bs = C[k, k];
                     if (bs == 0)
                     {
                         // Console.WriteLine("求逆错误！结果可能不正确！");
@@ -256,7 +265,7 @@ namespace models
                 }
                 for (int q = k + 1; q < n; q++)
                 {
-                    float bs = C[q, k];
+                    double bs = C[q, k];
                     for (int p = k; p < n * 2; p++)
                     {
                         C[q, p] -= bs * C[k, p];
@@ -267,7 +276,7 @@ namespace models
             {
                 for (int k = q - 1; k > -1; k--)
                 {
-                    float bs = C[k, q];
+                    double bs = C[k, q];
                     for (int m = k + 1; m < 2 * n; m++)
                     {
                         C[k, m] -= bs * C[q, m];

@@ -2,7 +2,7 @@
  * @Author: Conghao Wong
  * @Date: 2021-01-22 20:04:30
  * @LastEditors: Conghao Wong
- * @LastEditTime: 2021-03-26 15:56:11
+ * @LastEditTime: 2021-04-05 23:49:06
  * @Description: file content
  */
 
@@ -14,30 +14,40 @@ using Tensorflow;
 using Tensorflow.Keras;
 using Tensorflow.Keras.ArgsDefinition;
 using Tensorflow.Keras.Engine;
-using static models.HelpMethods;
+using static modules.models.helpMethods.HelpMethods;
 using static Tensorflow.Binding;
 using static Tensorflow.KerasApi;
-using models.Managers.TrainManagers;
 
-namespace models.Managers.AgentManagers
+
+namespace modules.models.Prediction
 {
-    [Serializable]
     public class BaseAgentManager
     {
-        Array _traj;
-        Array _traj_future;
-        Array _traj_pred;
-        Array _traj_pred_linear;
-        Array _traj_map;
-        Array _social_map;
-        Array _real2grid;
-        Array _frame_list;
-        Array _frame_list_future;
+        public Array _traj;
+        public Array _traj_future;
+        public Array _traj_pred;
+        public Array _traj_pred_linear;
+        public Array _traj_map;
+        public Array _social_map;
+        public Array _real2grid;
+        public Array _frame_list;
+        public Array _frame_list_future;
 
         (float ade, float fde) _loss;
 
-        float _version_ = 2.0f;
+        public float _version_ = 2.0f;
+        public List<string> _save_items = new List<string>{
+            "_traj", "_traj_future", 
+            "_traj_pred", "_traj_pred_linear",
+            "_frame_list", "_frame_list_future",
+            "_traj_map", "_social_map", "_real2grid",
+            "_version_"
+        };
 
+        public BaseAgentManager() : base(){
+            
+        }
+    
         public void copy()
         {
             // TODO: copy() in BaseAgentManager
@@ -121,8 +131,8 @@ namespace models.Managers.AgentManagers
                 
                 var center_pos = value.real2grid(this.traj["-1, :"]);
                 var original_map = full_map[String.Format("{0}, {1}",
-                    models.HelpMethods.get_slice_index(np.maximum(center_pos[0] - half_size, 0), np.minimum(center_pos[0] + half_size, full_map.shape[0])),
-                    models.HelpMethods.get_slice_index(np.maximum(center_pos[1] - half_size, 0), np.minimum(center_pos[1] + half_size, full_map.shape[1]))
+                    get_slice_index(np.maximum(center_pos[0] - half_size, 0), np.minimum(center_pos[0] + half_size, full_map.shape[0])),
+                    get_slice_index(np.maximum(center_pos[1] - half_size, 0), np.minimum(center_pos[1] + half_size, full_map.shape[1]))
                 )];
                 
                 var final_map = tf.image.resize(tf.expand_dims(original_map, axis: -1), (2 * half_size, 2 * half_size));
@@ -145,8 +155,8 @@ namespace models.Managers.AgentManagers
                 var full_map = value.full_map;
 
                 var original_map = full_map[String.Format("{0}, {1}",
-                    models.HelpMethods.get_slice_index(np.maximum(center_pos[0] - half_size, 0), np.minimum(center_pos[0] + half_size, full_map.shape[0])),
-                    models.HelpMethods.get_slice_index(np.maximum(center_pos[1] - half_size, 0), np.minimum(center_pos[1] + half_size, full_map.shape[1]))
+                    get_slice_index(np.maximum(center_pos[0] - half_size, 0), np.minimum(center_pos[0] + half_size, full_map.shape[0])),
+                    get_slice_index(np.maximum(center_pos[1] - half_size, 0), np.minimum(center_pos[1] + half_size, full_map.shape[1]))
                 )];
                 var final_map = tf.image.resize(tf.expand_dims(original_map, axis: -1), (2 * half_size, 2 * half_size));
 
@@ -183,21 +193,49 @@ namespace models.Managers.AgentManagers
             // TODO rotate map in BaseAgentManager
             return np.array((0));
         }
+
+        public Dictionary<string, object> zip_data(){
+            var zipped = new Dictionary<string, object>();
+            foreach (var item in this._save_items){
+                zipped[item] = getattr(this, item);
+            }
+            return zipped;
+        }
+
+        public dynamic load_data(Dictionary<string, object> zipped_data){
+            foreach (var item in zipped_data.Keys){
+                if (!zipped_data.Keys.Contains(item)){
+                    continue;
+                } else {
+                    setattr(this, item, zipped_data[item]);
+                }
+            }
+            return this;
+        }
     }
 
 
-    [Serializable]
     public class TrainAgentManager : BaseAgentManager
     {
-        List<Array> _neighbor_traj;
-        List<Array> _neighbor_traj_linear_pred;
-        bool linear_predict;
+        public List<Array> _neighbor_traj;
+        public List<Array> _neighbor_traj_linear_pred;
+        public bool linear_predict;
         public int obs_length;
         public int total_frame;
         public int neighbor_number;
-        
 
-        public TrainAgentManager(
+        public TrainAgentManager()
+        {
+            var new_items = new List<string> {
+                "linear_predict",
+                "neighbor_number",
+                "_neighbor_traj", "_neighbor_traj_linear_pred",
+                "obs_length", "total_frame"
+            };
+            this._save_items.AddRange(base._save_items);
+        }
+
+        public TrainAgentManager init_data(
             EntireTrajectory target_agent,
             List<EntireTrajectory> neighbor_agents,
             NDArray frame_list,
@@ -207,8 +245,7 @@ namespace models.Managers.AgentManagers
             int frame_step = 1,
             bool add_noise = false,
             bool linear_predict = true
-        )
-        {
+        ){
             this.linear_predict = linear_predict;
 
             // trajectory info
@@ -269,6 +306,8 @@ namespace models.Managers.AgentManagers
             this.write_neighbor_traj(neighbor_traj);
             this.write_neighbor_traj_linear_pred(neighbor_traj_linear_pred);
             this.neighbor_number = len(neighbor_agents);
+
+            return this;
         }
 
         BaseAgentManager rotate()
@@ -344,11 +383,11 @@ namespace models.Managers.AgentManagers
         public int linear_predictor; // FIXME linear predictor in onlineAgentManager
 
         public OnlineAgentManager(
-            ArgManagers.OnlineArgsManager args,
+            OnlineArgs args,
             int agent_id,
             int linear_predictor
         ) : base()
-        {
+        {   
             this.obs_frames = args.obs_frames;
             this.pred_frames = args.pred_frames;
             this.wait_frames = args.wait_frames;

@@ -2,37 +2,27 @@
  * @Author: Conghao Wong
  * @Date: 2021-01-22 21:08:04
  * @LastEditors: Conghao Wong
- * @LastEditTime: 2021-03-26 15:52:24
+ * @LastEditTime: 2021-04-05 21:52:11
  * @Description: file content
  */
 
 using System;
+using modules.models.Base;
 
-namespace models.Managers.ArgManagers
+namespace modules.models.Prediction
 {
-    public class BaseArgManager
-    {
-        public string gpu = "0";
-        public bool verbose = false;
-
-        public string save_base_dir = "./logs";
-        public string save_format = "tf";
-        public string log_dir = "null";
-        public string load = "null";
-    }
-
-    public class BasePredictArgs : BaseArgManager
+    public class BasePredictArgs : BaseArgs
     {
         public int obs_frames = 8;
         public int pred_frames = 12;
     }
 
-    public class TrainArgsManager : BasePredictArgs
+    public class TrainArgs : BasePredictArgs
     {
         public int map_half_size = 50;
 
         // train args
-        public int batch_size = 5000;
+        // public int batch_size = 5000;
         public float lr = 0.001f;
         public string test_mode = "one";
 
@@ -61,7 +51,7 @@ namespace models.Managers.ArgManagers
     }
 
 
-    public class OnlineArgsManager : TrainArgsManager
+    public class OnlineArgs : TrainArgs
     {
         public int wait_frames = 4;
         public int guidance_map_limit = 10000;

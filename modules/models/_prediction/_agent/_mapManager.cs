@@ -2,7 +2,7 @@
  * @Author: Conghao Wong
  * @Date: 2021-01-22 21:00:55
  * @LastEditors: Conghao Wong
- * @LastEditTime: 2021-03-26 16:01:32
+ * @LastEditTime: 2021-04-05 21:16:55
  * @Description: file content
  */
 
@@ -14,17 +14,17 @@ using Tensorflow;
 using Tensorflow.Keras;
 using Tensorflow.Keras.ArgsDefinition;
 using Tensorflow.Keras.Engine;
-using static models.HelpMethods;
+using static modules.models.helpMethods.HelpMethods;
 using static Tensorflow.Binding;
 using static Tensorflow.KerasApi;
-using models.Managers.ArgManagers;
-using models.Managers.AgentManagers;
 
-namespace models.Managers
+using modules.models.Base;
+
+namespace modules.models.Prediction
 {
     public class MapManager
     {
-        public TrainArgsManager args;
+        public TrainArgs args;
         public NDArray full_map;
         List<TrainAgentManager> agents;
 
@@ -35,7 +35,7 @@ namespace models.Managers
         public NDArray guidance_map;
 
         public MapManager(
-            TrainArgsManager args,
+            TrainArgs args,
             List<TrainAgentManager> agents,
             MapManager init_manager = null
         )

@@ -2,11 +2,9 @@
  * @Author: Conghao Wong
  * @Date: 2021-01-22 19:34:14
  * @LastEditors: Conghao Wong
- * @LastEditTime: 2021-01-29 02:23:02
+ * @LastEditTime: 2021-04-05 22:14:14
  * @Description: file content
  */
-
-using M = models;
 
 using NumSharp;
 using System;
@@ -18,6 +16,8 @@ using Tensorflow.Keras.Engine;
 using static Tensorflow.Binding;
 using static Tensorflow.KerasApi;
 
+using mod = modules;
+
 
 namespace ProjectHelios
 {
@@ -25,18 +25,13 @@ namespace ProjectHelios
     {
         static void Main(string[] args)
         {
-            var Margs = new M.Managers.ArgManagers.TrainArgsManager();
-            Margs.model = "bgm";
+            var Margs = new mod.models.Prediction.TrainArgs();
+            Margs.model = "l";
             dynamic model;
             if (Margs.model == "l")
             {
                 Margs.load = "linear";
-                model = new M.Prediction.Linear(Margs);
-                model.run_commands();
-            }
-            else if ( Margs.model == "bgm")
-            {
-                model = new M.Prediction.NewBGM(Margs);
+                model = new mod.Linear.Linear(Margs);
                 model.run_commands();
             }
 

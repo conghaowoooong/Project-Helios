@@ -2,7 +2,7 @@
  * @Author: Conghao Wong
  * @Date: 2021-01-27 17:18:51
  * @LastEditors: Conghao Wong
- * @LastEditTime: 2021-03-26 16:00:20
+ * @LastEditTime: 2021-04-05 23:53:25
  * @Description: file content
  */
 
@@ -15,34 +15,73 @@ using Tensorflow;
 using Tensorflow.Keras;
 using Tensorflow.Keras.ArgsDefinition;
 using Tensorflow.Keras.Engine;
-using static models.HelpMethods;
+using static modules.models.helpMethods.HelpMethods;
 using static Tensorflow.Binding;
 using static Tensorflow.KerasApi;
 using System.Collections;
-using models.Managers.ArgManagers;
-using models.Managers.AgentManagers;
-using models.Managers.DatasetManagers;
-using System.Runtime.Serialization.Formatters.Binary;
+using modules.models.Base;
 
-using models.Log;
 
-namespace models.Managers.TrainManagers
+namespace modules.models.Prediction
 {
     public class EntireTrajectory
     {
-        public int agent_index;
-        public NDArray traj;
-        public List<Array> video_neighbor_list;
-        public NDArray frame_list;
-        public int start_frame;
-        public int end_frame;
+        int _agent_index;
+        NDArray _traj;
+        List<Array> _video_neighbor_list;
+        NDArray _frame_list;
+        int _start_frame;
+        public int _end_frame;
+
+        public int agent_index
+        {
+            get
+            {
+                return this._agent_index;
+            }
+        }
+        public NDArray traj
+        {
+            get
+            {
+                return this._traj;
+            }
+        }
+        public List<Array> video_neighbor_list
+        {
+            get
+            {
+                return this._video_neighbor_list;
+            }
+        }
+        public NDArray frame_list
+        {
+            get
+            {
+                return this._frame_list;
+            }
+        }
+        public int start_frame
+        {
+            get
+            {
+                return this._start_frame;
+            }
+        }
+        public int end_frame
+        {
+            get
+            {
+                return this._end_frame;
+            }
+        }
 
         public EntireTrajectory(int agent_index, List<Array> video_neighbor_list, NDArray video_matrix, NDArray frame_list, float init_position)
         {
-            this.agent_index = agent_index;
-            this.traj = np.transpose(video_matrix, new int[] { 1, 0, 2 })[agent_index].copy();
-            this.video_neighbor_list = video_neighbor_list;
-            this.frame_list = frame_list;
+            this._agent_index = agent_index;
+            this._traj = np.transpose(video_matrix, new int[] { 1, 0, 2 })[agent_index].copy();
+            this._video_neighbor_list = video_neighbor_list;
+            this._frame_list = frame_list;
 
             var base_ = this.traj.T[0];
             var diff = base_[":-1"] - base_["1:"];
@@ -50,14 +89,15 @@ namespace models.Managers.TrainManagers
             var appear = where1d(diff > init_position / 2.0f);
             var disappear = where1d(diff < -init_position / 2.0f);
 
-            this.start_frame = len(appear) > 0 ? appear[0] + 1 : 0;
-            this.end_frame = len(disappear) > 0 ? disappear[0] + 1 : len(base_);
+            this._start_frame = len(appear) > 0 ? appear[0] + 1 : 0;
+            this._end_frame = len(disappear) > 0 ? disappear[0] + 1 : len(base_);
         }
     }
 
+
     public class DatasetManager
     {
-        TrainArgsManager args;
+        TrainArgs args;
         public string dataset_name;
         Dataset dataset_info;
         List<Array> video_neighbor_list;
@@ -66,7 +106,7 @@ namespace models.Managers.TrainManagers
         public int person_number;
         List<EntireTrajectory> all_entire_trajectories;
 
-        public DatasetManager(TrainArgsManager args, string dataset_name, Tuple<List<Array>, NDArray, NDArray> custom_list = null)
+        public DatasetManager(TrainArgs args, string dataset_name, Tuple<List<Array>, NDArray, NDArray> custom_list = null)
         {
             this.args = args;
             this.dataset_name = dataset_name;
@@ -189,17 +229,17 @@ namespace models.Managers.TrainManagers
                 all_entrie_trajectories.append(
                     new EntireTrajectory(
                         person,
-                        this.video_neighbor_list,
-                        this.video_matrix,
-                        this.frame_list,
-                        this.args.init_position
+                       this.video_neighbor_list,
+                       this.video_matrix,
+                       this.frame_list,
+                       this.args.init_position
                     )
                 );
             }
             return all_entrie_trajectories;
         }
 
-        TrainAgentManager get_trajectory(
+        TrainAgentManager _get_trajectory(
             int agent_index, int start_frame, int obs_frame, int end_frame,
             int frame_step = 1,
             bool add_noise = false
@@ -222,7 +262,7 @@ namespace models.Managers.TrainManagers
                 neighbor_agents.append(this.all_entire_trajectories[item]);
             }
 
-            return new TrainAgentManager(
+            return new TrainAgentManager().init_data(
                 trajecotry_current, neighbor_agents,
                 frame_list, start_frame, obs_frame, end_frame,
                 frame_step: frame_step, add_noise: add_noise
@@ -234,7 +274,7 @@ namespace models.Managers.TrainManagers
             var sample_rate = this.dataset_info.paras[0];
             var frame_rate = this.dataset_info.paras[1];
             var frame_step = (int)(0.4f / (sample_rate / frame_rate));
-            var timebar = new LogBar();
+            var timebar = new LogFunction.LogBar();
 
             // sample all train agents
             var train_agents = new List<TrainAgentManager>();
@@ -253,7 +293,7 @@ namespace models.Managers.TrainManagers
                         break;
                     }
 
-                    train_agents.append(this.get_trajectory(
+                    train_agents.append(this._get_trajectory(
                         agent_id, frame_point,
                         frame_point + this.args.obs_frames * frame_step,
                         frame_point + (this.args.obs_frames + this.args.pred_frames) * frame_step,
@@ -289,7 +329,7 @@ namespace models.Managers.TrainManagers
 
     public class TrainDataManager
     {
-        TrainArgsManager args;
+        TrainArgs args;
         PredictionDatasetManager dataset_info;
         List<string> dataset_list;
         List<string> train_list;
@@ -297,7 +337,7 @@ namespace models.Managers.TrainManagers
         public Dictionary<string, object> train_info;
 
         public TrainDataManager(
-            TrainArgsManager args, bool save = true,
+            TrainArgs args, bool save = true,
             string prepare_type = "all"
         )
         {
@@ -381,6 +421,24 @@ namespace models.Managers.TrainManagers
             };
         }
 
+        public void zip_and_save(string save_dir, List<TrainAgentManager> agents){
+            var save_dict = new Dictionary<string, object>();
+            foreach (int index in range(len(agents))){
+                save_dict[String.Format("{0}", index)] = agents[index].zip_data();
+            }
+            write_file(save_dir, save_dict);
+        }
+
+        public List<TrainAgentManager> load_and_unzip(string save_dir){
+            var save_dict = read_file<Dictionary<string, object>>(save_dir);
+            List<TrainAgentManager> results = new List<TrainAgentManager>();
+            foreach (var val in save_dict.Values){
+                var am = new TrainAgentManager();
+                results.append((TrainAgentManager)am.load_data((Dictionary<string, object>)val));
+            }
+            return results;
+        }
+
         public List<TrainAgentManager> prepare_train_files(
             List<DatasetManager> dataset_managers, string mode = "test"
         )
@@ -396,11 +454,11 @@ namespace models.Managers.TrainManagers
                 if (!file_exist(path))
                 {
                     agents = dm.sample_train_data();
-                    write_file(path, agents);
+                    this.zip_and_save(path, agents);
                 }
                 else
                 {
-                    agents = read_file<List<TrainAgentManager>>(path);
+                    agents = this.load_and_unzip(path);
                 }
 
                 if (mode == "train")
