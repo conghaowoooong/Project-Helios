@@ -2,7 +2,7 @@
  * @Author: Conghao Wong
  * @Date: 2021-01-26 13:17:07
  * @LastEditors: Conghao Wong
- * @LastEditTime: 2021-04-05 22:45:12
+ * @LastEditTime: 2021-04-07 11:06:16
  * @Description: file content
  */
 
@@ -125,6 +125,12 @@ namespace modules.models.helpMethods
             var bf = new BinaryFormatter();
             T ps = (T)bf.Deserialize(fs);
             return ps;
+        }
+
+        public static string[] read_txt_lines(string path)
+        {
+            string[] RawString = System.IO.File.ReadAllLines(path);
+            return RawString;
         }
 
         public static dynamic load_image(string path, int[] resize_shape = null, bool return_numpy = true)
@@ -349,6 +355,42 @@ namespace modules.models.helpMethods
             {
                 return (np.sum(vec1 * vec2) / (length1 * length2)).astype(np.float32);
             }
+        }
+
+        public static Tensorflow.Keras.Layers.Dense GraphConv_layer(int output_units, Activation activation=null){
+            return keras.layers.Dense(output_units, activation:activation);
+        }
+
+        public static Tensor GraphConv_func(
+            Tensor features, 
+            Tensor A, 
+            int output_units=64, 
+            Activation activation=null, 
+            Tensorflow.Keras.Layers.Dense layer=null,
+            bool building=false
+        ){
+            var dot = tf.batch_matmul(A, features);
+            Tensor res;
+            if (building){
+                return layer.Apply(features);
+            }
+            if (layer is null){
+                res = keras.layers.Dense(output_units, activation:activation).Apply(dot);
+            } else {
+                res = batch_dense(dot, layer);
+            }
+            return res;
+        }
+
+        public static Tensor batch_dense(Tensor inputs, Tensorflow.Keras.Layers.Dense layer){
+            var original_shape = inputs.shape;
+            var all_results = new List<Tensor>();
+
+            foreach (Tensor item in tf.split(inputs, original_shape[1], -2)){
+                var reshape = tf.reshape(item, (-1, original_shape[2]));
+                all_results.append(layer.Apply(reshape));
+            }
+            return tf.transpose(tf.stack(all_results), (1, 0, 2));
         }
     }
 

@@ -2,7 +2,7 @@
  * @Author: Conghao Wong
  * @Date: 2021-01-26 18:46:31
  * @LastEditors: Conghao Wong
- * @LastEditTime: 2021-04-06 00:23:28
+ * @LastEditTime: 2021-04-07 09:11:31
  * @Description: file content
  */
 
@@ -23,23 +23,31 @@ using Tensorflow.Keras.Optimizers;
 
 namespace modules.models.Prediction
 {
-    class Model : Base.Model
+    abstract class Model : Base.Model
     {
         TrainArgs _train_args;
-        public TrainArgs args {
-            get {
+        public Dictionary<string, Tensor> move_dict = new Dictionary<string, Tensor>();
+        public Dictionary<string, Tensor> rotate_dict = new Dictionary<string, Tensor>();
+        public Dictionary<string, Tensor> scale_dict = new Dictionary<string, Tensor>();
+
+        public override TrainArgs args
+        {
+            get
+            {
                 return this._train_args;
             }
         }
 
         Structure _training_structure;
-        public Structure training_structure {
-            get {
+        public Structure training_structure
+        {
+            get
+            {
                 return this._training_structure;
             }
         }
 
-        public Model(TrainArgs args, Structure training_structure) : base(args)
+        public Model(TrainArgs args, Structure training_structure) : base((BaseArgs)args)
         {
             this._train_args = args;
             this._training_structure = training_structure;
@@ -47,41 +55,36 @@ namespace modules.models.Prediction
     }
 
 
-    class Structure : Base.Structure {
+    class Structure : Base.Structure
+    {
         TrainArgs _train_args;
-        public new TrainArgs args {
-            get {
+        public new TrainArgs args
+        {
+            get
+            {
                 return this._train_args;
             }
         }
 
-        Model _pred_model;
-        public override dynamic model {
-            get {
-                return this._pred_model;
-            }
-            set {
-                this._pred_model = value;
-            }
-        }
-
-        public Structure(TrainArgs args):base(args){
+        public Structure(TrainArgs args) : base(args)
+        {
             this._train_args = args;
         }
-        
+
         public void run_commands()
         {
             // prepare training
             if (this.args.load == "null")
-            {   
+            {
                 // this.model.load_weights("./test.tf");
-                this.create_model();
+                (this.model, _) = this.create_model();
                 this.log_function("Training method is not support in current platform!");
                 throw new KeyNotFoundException();
             }
             else
             {
-                this._pred_model = this.load_from_checkpoint(this.args.load);
+                (this.model, _) = this.create_model();
+                this.load_from_checkpoint(this.args.load);
                 if (this.args.test_mode == "all")
                 {
                     foreach (var dataset in new PredictionDatasetManager().ethucy_testsets)
@@ -134,10 +137,10 @@ namespace modules.models.Prediction
         public virtual Model load_from_checkpoint(string model_path)
         {
             this.load_model(model_path);
-            return this.model;
+            return null;
         }
 
-        (List<Tensor> model_inputs, Tensor gt) prepare_model_inputs_all(List<TrainAgentManager> input_agents)
+        public virtual (List<Tensor> model_inputs, Tensor gt) get_inputs_from_agents(List<TrainAgentManager> input_agents)
         {
             return getInputs_onlyTraj(input_agents);
         }
@@ -148,7 +151,7 @@ namespace modules.models.Prediction
         ///
         ///</summary>
         ///<return name="dataset_train"> train dataset, type = `tf.data.Dataset` </return>
-        public override (IDatasetV2, IDatasetV2) load_dataset()
+        public override (Tensors, Tensors) load_dataset()
         {
             var dm = new TrainDataManager(this.args, prepare_type: "all");
             var agents_train = (List<TrainAgentManager>)dm.train_info["train_data"];
@@ -156,14 +159,13 @@ namespace modules.models.Prediction
             var train_number = dm.train_info["train_number"];
             var sample_time = dm.train_info["sample_time"];
 
-            (Tensors train_model_inputs, Tensor train_labels) = this.prepare_model_inputs_all(agents_train);
-            (Tensors test_model_inputs, Tensor test_labels) = this.prepare_model_inputs_all(agents_test);
+            (Tensors train_model_inputs, Tensor train_labels) = this.get_inputs_from_agents(agents_train);
+            (Tensors test_model_inputs, Tensor test_labels) = this.get_inputs_from_agents(agents_test);
 
-            var dataset_train = tf.data.Dataset.from_tensor_slices(train_model_inputs, train_labels);
-            dataset_train = dataset_train.shuffle(len(dataset_train), reshuffle_each_iteration: true);
-            var dataset_test = tf.data.Dataset.from_tensor_slices(test_model_inputs, test_labels);
+            train_model_inputs.Add(train_labels);
+            test_model_inputs.Add(test_labels);
 
-            return (dataset_train, dataset_test);
+            return (train_model_inputs, test_model_inputs);
         }
 
         ///FUNCTION_NAME: load_test_dataset
@@ -171,12 +173,12 @@ namespace modules.models.Prediction
         ///        Load test dataset.
         ///
         ///</summary>
-        public override IDatasetV2 load_test_dataset(Dictionary<string, object> kwargs = null)
+        public override Tensors load_test_dataset(Dictionary<string, object> kwargs = null)
         {
             var agents = (List<TrainAgentManager>)kwargs["agents"];
-            (Tensors model_inputs, Tensor labels) = this.prepare_model_inputs_all(agents);
-            var dataset_test = tf.data.Dataset.from_tensor_slices(model_inputs, labels);
-            return dataset_test;
+            (Tensors model_inputs, Tensor labels) = this.get_inputs_from_agents(agents);
+            model_inputs.Add(labels);
+            return model_inputs;
         }
 
         ///FUNCTION_NAME: load_forward_dataset
@@ -184,7 +186,7 @@ namespace modules.models.Prediction
         ///        Load forward dataset.
         ///
         ///</summary>
-        public override IDatasetV2 load_forward_dataset(Dictionary<string, object> kwargs = null)
+        public override Tensors load_forward_dataset(Dictionary<string, object> kwargs = null)
         {
             dynamic agents = kwargs["model_inputs"];
             return getForwardDataset_onlyTraj(agents);

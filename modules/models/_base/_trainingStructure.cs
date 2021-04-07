@@ -2,7 +2,7 @@
  * @Author: Conghao Wong
  * @Date: 2021-01-26 14:33:11
  * @LastEditors: Conghao Wong
- * @LastEditTime: 2021-04-06 00:24:15
+ * @LastEditTime: 2021-04-06 21:44:57
  * @Description: file content
  */
 
@@ -14,18 +14,19 @@ using Tensorflow;
 
 using static Tensorflow.Binding;
 using static Tensorflow.KerasApi;
+using static modules.models.helpMethods.HelpMethods;
 
 namespace modules.models.Base
 {
-    class Model : Tensorflow.Keras.Engine.Model
+    abstract class Model
     {
         BaseArgs _base_args;
         Structure _training_structure;
-
+        
         public Model(
             BaseArgs Args,
             Structure training_structure = null
-        ) : base(new Tensorflow.Keras.ArgsDefinition.ModelArgs())
+        )
         {
             this._base_args = Args;
             this._training_structure = training_structure;
@@ -47,10 +48,51 @@ namespace modules.models.Base
             }
         }
 
-        public virtual Tensors call(Tensors inputs, bool training = false, dynamic mask = null)
-        {
-            // TODO call in keras.Model
-            return null;
+        public abstract Tensors call(Tensors inputs, bool training = false, dynamic mask = null);
+
+        public abstract void build();
+
+        public void load_weights(string base_dir){
+            var name_path = System.IO.Path.Combine(base_dir, "names.txt");
+            var names = read_txt_lines(name_path);
+            foreach (var name in names){
+                var npy_path = System.IO.Path.Combine(base_dir, string.Format("{0}.npy", name));
+                var tf_variable = tf.Variable(np.load(npy_path));
+
+                var var_name_list = name.Split("|||");
+                var python_name = var_name_list[0];
+
+                string var_type;
+                dynamic layer_weights;
+                var current_layer = getattr(this, python_name);
+
+                if (python_name == "gcn_layers"){
+                    var_type = var_name_list[2];
+                    layer_weights = current_layer[string.Format("{0}", var_name_list[1])].weights;
+                    
+                } else {
+                    var_type = var_name_list[1];
+                    layer_weights = current_layer.weights;
+                }
+                
+                int index = 0;
+                foreach (var item in layer_weights){
+                    if (item.Name.IndexOf(var_type) > -1){
+                        break;
+                    } else {
+                        index ++;
+                    }
+                }
+
+                if (python_name == "gcn_layers"){
+                    current_layer[string.Format("{0}", var_name_list[1])].weights[index].assign(tf_variable);
+                    
+                } else {
+                    current_layer.weights[index].assign(tf_variable);
+                }
+
+                setattr(this, python_name, current_layer);
+            }
         }
 
         ///<summary>
@@ -64,7 +106,7 @@ namespace modules.models.Base
             var post_process = training ? false : true;
 
             var model_inputs_processed = this.pre_process(model_inputs);
-            var outputs = this.call(model_inputs);
+            var outputs = this.call(model_inputs_processed);
             if (true)
             {
                 // FIXME Tensor -> List[Tensor]
@@ -76,10 +118,10 @@ namespace modules.models.Base
 
             if (post_process)
             {
-                outputs = this.post_process_test(outputs, model_inputs: model_inputs);
+                output_processed = this.post_process_test(output_processed, model_inputs: model_inputs);
             }
 
-            return outputs;
+            return output_processed;
         }
 
         public virtual Tensors pre_process(Tensors model_inputs, Dictionary<string, object> kwargs = null)
@@ -102,7 +144,7 @@ namespace modules.models.Base
     class Structure
     {
         BaseArgs _base_args;
-        Model _base_model;
+        Model _model;
         private Tensorflow.Keras.Optimizers.OptimizerV2 opt;
 
         public virtual BaseArgs args
@@ -113,15 +155,15 @@ namespace modules.models.Base
             }
         }
 
-        public virtual dynamic model
+        public Model model
         {
             get
             {
-                return this._base_model;
+                return this._model;
             }
             set
             {
-                this._base_model = value;
+                this._model = value;
             }
         }
 
@@ -165,9 +207,8 @@ namespace modules.models.Base
         ///<param name="model_path"> path of model </param>
         public Model load_model(string model_path)
         {
-            (model, opt) = this.create_model();
-            model.load_weights(model_path);
-            return model;
+            this.model.load_weights(model_path);
+            return this.model;
         }
 
         ///FUNCTION_NAME: save_model
@@ -178,7 +219,7 @@ namespace modules.models.Base
         void save_model(string save_path)
         {
             // FIXME it should be `save_weights` rather than `save`
-            this.model.save(save_path);
+            // this.model.save(save_path);
         }
 
         ///FUNCTION_NAME: create_model
@@ -249,30 +290,6 @@ namespace modules.models.Base
             (var loss_eval, var loss_dict) = this.loss_eval(model_outputs, gt, new Dictionary<string, object> { { "mode", "val" } });
             return (model_outputs, loss_eval, loss_dict);
         }
-
-        ///FUNCTION_NAME: gradient_operations
-        ///<summary>
-        ///        Run gradient dencent once during training.
-        ///
-        ///
-        ///</summary>
-        ///<param name="model_inputs"> model inputs </param>
-        ///<param name="gt"> :ground truth </param>
-        ///<param name="loss_move_average"> Moving average loss </param>
-        ///<return name="loss"> sum of all single loss functions </return>
-        ///<return name="loss_dict"> a dict of all loss functions </return>
-        (Tensor, Dictionary<string, Tensor>, Tensor) gradient_operations(Tensors model_inputs, Tensor gt, Tensor loss_move_average, Dictionary<string, object> kwargs = null)
-        {
-            using var tape = tf.GradientTape();
-            var model_outputs = this.model_forward(model_inputs, mode: "train");
-            (var loss, var loss_dict) = this.loss(model_outputs, gt, kwargs);
-            loss_move_average = 0.7 * loss + 0.3 * loss_move_average;
-
-            var grads = tape.gradient(loss_move_average, this.model.trainable_variables);
-            this.opt.apply_gradients(zip(grads, ((Model)this.model).trainable_variables.Select(x => x as ResourceVariable)));
-
-            return (loss, loss_dict, loss_move_average);
-        }
         
         ///FUNCTION_NAME: load_dataset
         ///<summary>
@@ -280,10 +297,10 @@ namespace modules.models.Base
         ///
         ///</summary>
         ///<return name="dataset_train"> train dataset, type = `tf.data.Dataset` </return>
-        public virtual (IDatasetV2 dataset_train, IDatasetV2 dataset_val) load_dataset()
+        public virtual (Tensors dataset_train, Tensors dataset_val) load_dataset()
         {
-            IDatasetV2 dataset_train = null;
-            IDatasetV2 dataset_val = null;
+            Tensors dataset_train = null;
+            Tensors dataset_val = null;
             return (dataset_train, dataset_val);
         }
 
@@ -292,9 +309,9 @@ namespace modules.models.Base
         ///        Load test dataset.
         ///
         ///</summary>
-        public virtual IDatasetV2 load_test_dataset(Dictionary<string, object> kwargs = null)
+        public virtual Tensors load_test_dataset(Dictionary<string, object> kwargs = null)
         {
-            IDatasetV2 dataset_test = null;
+            Tensors dataset_test = null;
             return dataset_test;
         }
         
@@ -303,9 +320,9 @@ namespace modules.models.Base
         ///        Load forward dataset.
         ///
         ///</summary>
-        public virtual IDatasetV2 load_forward_dataset(Dictionary<string, object> kwargs = null)
+        public virtual Tensors load_forward_dataset(Dictionary<string, object> kwargs = null)
         {
-            IDatasetV2 dataset_forward = null;
+            Tensors dataset_forward = null;
             return dataset_forward;
         }
 
@@ -373,14 +390,14 @@ namespace modules.models.Base
             var dataset_test = this.load_test_dataset(kwargs);
 
             // start test
-            var time_bar = dataset_test.batch(this.args.batch_size);
+            var time_bar = dataset_test;
 
             List<List<Tensor>> model_outputs_all = new List<List<Tensor>>();
             Dictionary<string, List<Tensor>> loss_dict_all = new Dictionary<string, List<Tensor>>();
 
-            foreach (var test_data in time_bar)
+            var test_data = time_bar;
             {
-                (var model_outputs, var loss, var loss_dict) = this.test_one_step(test_data.Item1, test_data.Item2);
+                (var model_outputs, var loss, var loss_dict) = this.test_one_step(dataset_test, dataset_test[dataset_test.Length-1]);
 
                 int length;
                 if (model_outputs.GetType() == typeof(Tensors))
@@ -436,13 +453,13 @@ namespace modules.models.Base
         ///<param name="return_numpy"> controls if returns `numpy.ndarray` or `tf.Tensor` </param> </returns> </return>
         ///<param name="return_numpy"> controls if returns `numpy.ndarray` or `tf.Tensor` </param> </returns> </return>
         ///<param name="return_numpy"> controls if returns `numpy.ndarray` or `tf.Tensor` </param> </returns> </return>
-        List<Tensor> forward(IDatasetV2 dataset, Dictionary<string, object> kwargs = null)
+        List<Tensor> forward(Tensors dataset, Dictionary<string, object> kwargs = null)
         {
             List<List<Tensor>> model_outputs_all = new List<List<Tensor>>();
 
-            foreach (var model_inputs in dataset.batch(this.args.batch_size))
+            var model_inputs = dataset;
             {
-                var model_outputs = this.model_forward(model_inputs.Item1, mode: "test");
+                var model_outputs = this.model_forward(model_inputs, mode: "test");
 
                 foreach (var index in range(len(model_outputs)))
                 {

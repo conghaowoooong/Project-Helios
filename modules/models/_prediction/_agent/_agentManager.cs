@@ -2,7 +2,7 @@
  * @Author: Conghao Wong
  * @Date: 2021-01-22 20:04:30
  * @LastEditors: Conghao Wong
- * @LastEditTime: 2021-04-05 23:49:06
+ * @LastEditTime: 2021-04-06 11:20:59
  * @Description: file content
  */
 
@@ -176,6 +176,12 @@ namespace modules.models.Prediction
                 {
                     return 0.5 * this.socialMap + 0.5 * this.trajMap;
                 }
+            }
+        }
+
+        public NDArray real2grid {
+            get {
+                return np.array(this._real2grid).astype(np.float32);
             }
         }
 

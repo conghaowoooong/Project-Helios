@@ -2,7 +2,7 @@
  * @Author: Conghao Wong
  * @Date: 2021-01-22 21:08:04
  * @LastEditors: Conghao Wong
- * @LastEditTime: 2021-04-05 21:52:11
+ * @LastEditTime: 2021-04-06 11:11:41
  * @Description: file content
  */
 
@@ -20,6 +20,14 @@ namespace modules.models.Prediction
     public class TrainArgs : BasePredictArgs
     {
         public int map_half_size = 50;
+        public float dropout = 0.5f;
+        
+        // GCN args
+        public int gcn_layers = 3;
+
+        // GAN args
+        public int K = 20;
+        public int K_train = 10;
 
         // train args
         // public int batch_size = 5000;

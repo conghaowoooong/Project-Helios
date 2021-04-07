@@ -2,7 +2,7 @@
  * @Author: Conghao Wong
  * @Date: 2021-03-31 15:51:46
  * @LastEditors: Conghao Wong
- * @LastEditTime: 2021-04-05 22:33:19
+ * @LastEditTime: 2021-04-06 19:47:57
  * @Description: file content
  */
 
@@ -61,9 +61,19 @@ namespace modules.Linear
             this.W = tf.matmul(tf.matmul(ndarray_inv((tf.matmul(tf.matmul(tf.transpose(A), P), A)).numpy()).astype(np.float32), tf.transpose(A)), P);            
         }
 
+        public override void build()
+        {
+            
+        }
+
         public override Tensors call(Tensors inputs, bool training = false, dynamic mask = null)
         {
-            var input = tf.transpose(inputs[0], (2, 0, 1));
+            return inputs;
+        }
+
+        public override Tensors post_process(Tensors model_outputs, Tensors model_inputs = null)
+        {
+            var input = tf.transpose(model_outputs[0], (2, 0, 1));
 
             var x = tf.expand_dims(input[0], axis: -1);
             var y = tf.expand_dims(input[1], axis: -1);
@@ -98,13 +108,15 @@ namespace modules.Linear
         public override Prediction.Model load_from_checkpoint(string model_path)
         {
             (this.model, _) = this.create_model();
-            return this.model;
+            return null; //BUG
         }
 
         public override (Prediction.Model, OptimizerV2) create_model()
         {
             var optimizer = keras.optimizers.Adam(this.args.lr);
-            return (new LinearModel(this.args), optimizer);
+            var model = new LinearModel(this.args);
+            model.build();
+            return (model, optimizer);
         }
     }
 }
